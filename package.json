@@ -3,8 +3,8 @@
   "description": "Deep neural network for reconstruction of structured illumination microscopy images",
   "license": "MIT",
   "author": "Charles N. Christensen",
-  "version": "1.0.0",
-  "private": true,
+  "version": "1.0.1",
+  "private": false,
   "workspaces": [
     ".",
     "pyengine"
@@ -39,9 +39,7 @@
   "build": {
     "publish": [
       {
-        "provider": "s3",
-        "bucket": "mlsim",
-        "path": "dist"
+        "provider": "github"
       }
     ],
     "mac": {

@@ -76,16 +76,17 @@ def start_communication(conn, address):
             if exit():
                 print('Can now close thread')
         elif cmd == 'Reconstruct':
-            log('GetThumb: %s' % str(data))
+            log('Reconstruct: %s' % str(data))
             exportdir = args[2]
             filepaths = args[3:]
             try:
+                log('now calling recon')
                 reconpaths = mlsim.reconstruct(exportdir,filepaths,conn)
-                print('sending back',reconpaths)
+                log('sending back %s' % reconpaths)
                 conn.send(('2' + '\n'.join(reconpaths)).encode())
             except:
                 errmsg = traceback.format_exc()
-                log(errmsg)
+                log("Error in reconstruct %s" % errmsg)
                 conn.send(('2' + '\n'.join([])).encode())
 
             conn.recv(20).decode()  # ready to exit

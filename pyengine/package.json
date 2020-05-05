@@ -6,13 +6,11 @@
     "author": "Charles N. Christensen",
     "scripts": {
         "pyinstaller": "pipenv run pyinstaller pysrc/engine.py --add-data ./pysrc/extra_dll/vcomp140.dll;./ --hidden-import sklearn.neighbors.typedefs --hidden-import sklearn --hidden-import sklearn.utils --hidden-import sklearn.utils._cython_blas --distpath . -y --noconfirm",
-        "pysign": "python util/pyinstaller_sign.py",
-        "py": "yarn pyinstaller & yarn pysign",
         "pyzip": "node util/pyzip.js",
         "pyfinalize": "node util/pyfinalize.js",
         "pypackage": "yarn pyzip && yarn pyfinalize",
-        "pybuild": "yarn py && yarn pypackage",
-        "pypush": "aws s3 cp engine.mlsim s3://mlsim/pdist/ && aws s3 cp latest.json s3://mlsim/pdist/",
+        "pybuild": "yarn pyinstaller && yarn pypackage",
+        "pypush": "aws s3 cp engine.mlsim s3://ml-sim/pdist/ && aws s3 cp latest.json s3://ml-sim/pdist/",
         "pyrelease": "yarn pybuild && yarn pypush",
         "patch": "npm --no-git-tag-version version patch"
     },

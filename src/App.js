@@ -151,6 +151,7 @@ sess.width = window.innerWidth;
 sess.height = window.innerHeight;
 
 sess.desktop_fingerprint = "-1";
+sess.serverActive = false;
 
 // functions
 sess.updateGeometry = null;
@@ -577,7 +578,7 @@ class CalcStatus extends Component {
       if (cmd === "i") {
         // indexing
         msg = msg.split(",");
-        var n1 = Number.parseInt(msg[0]) + 1;
+        var n1 = Number.parseInt(msg[0]);
         var n2 = Number.parseInt(msg[1]);
         p =
           Number.parseInt(
@@ -586,7 +587,7 @@ class CalcStatus extends Component {
         s = (
           <Grid container>
             <Grid style={{ textAlign: "left" }} item xs>
-              {"Indexing:"}
+              {"Reconstructing"}
             </Grid>
             <Grid item xs>
               {n1 + "/" + n2}
@@ -653,10 +654,7 @@ class CalcStatus extends Component {
 
   render() {
     var progressBar = this.state.progress ? (
-      <LinearProgress
-        variant={this.state.progress > -1 ? "determinate" : "indeterminate"}
-        value={this.state.progress}
-      />
+      <LinearProgress variant={"indeterminate"} value={this.state.progress} />
     ) : (
       ""
     );
@@ -1207,12 +1205,29 @@ class ImgContainer extends Component {
     }
   }
 
-  componentDidMount() {
-    sess.readFolders(sess.displayedFolders);
+  checkForServerActive() {
+    if (!sess.serverActive) {
+      ipcRenderer.send("isServerActive");
+      setTimeout(
+        function() {
+          this.checkForServerActive();
+        }.bind(this),
+        500
+      );
+    }
+  }
 
+  componentDidMount() {
     /******************
      * EVENT HANDLERS *
      ******************/
+    ipcRenderer.on("serverActive", (event) => {
+      log.info("serverActive now active")
+      sess.serverActive = true;
+      sess.readFolders(sess.displayedFolders);
+    });
+
+    this.checkForServerActive();
 
     ipcRenderer.on("thumb", (event, filepath, thumbpath, dim) => {
       // remove completed job
@@ -1797,7 +1812,6 @@ class App extends Component {
 
       this.readFolders(displayedFolders);
     });
-
 
     window.addEventListener("resize", this.setWidth.bind(this));
 

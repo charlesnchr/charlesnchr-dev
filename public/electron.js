@@ -707,6 +707,11 @@ ipcMain.on("getFingerprint", (event) => {
   event.sender.send("getFingerprint", desktop_fingerprint);
 });
 
+ipcMain.on("isServerActive", (event) => {
+  if(serverActive)
+    event.sender.send("serverActive");
+});
+
 //  message box
 ipcMain.on("messagebox", (event) => {
   const options = {

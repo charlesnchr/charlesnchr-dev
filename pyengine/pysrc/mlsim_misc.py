@@ -297,10 +297,10 @@ def reconstruct(exportdir,filepaths, conn):
     os.makedirs(exportdir,exist_ok=True)
     result_arr = []
 
-    print('received filepaths', filepaths)
+    log('received filepaths %s' % filepaths)
 
     for idx, filepath in enumerate(filepaths):
-        print('ITRERASTION',idx,filepath)
+        log('ITRERASTION %d %s' % (idx,filepath))
         # status reconstruction
         conn.send(("si%d,%d" % (idx, len(filepaths))).encode())
         ready = conn.recv(20).decode()
