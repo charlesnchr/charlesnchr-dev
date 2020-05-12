@@ -20,6 +20,7 @@ import tifffile as tiff
 import torch.nn.functional as F
 
 
+
 # toTensor = F.to_tensor()
 # toPIL = F.to_pil_image()
 
@@ -56,7 +57,7 @@ def GetOptions_allRnd():
     opt.model = 'rcan'
     opt.n_resgroups = 3
     opt.n_resblocks = 10
-    opt.n_feats = 96
+    opt.n_feats = 48
     opt.reduction = 16
     opt.narch = 0
     opt.norm = 'adapthist'
@@ -67,7 +68,7 @@ def GetOptions_allRnd():
     opt.undomulti = False
 
     opt.imageSize = 512
-    opt.weights = "../models/DIV2K_randomised_3x3.pth"
+    opt.weights = "../models/0216_SIMRec_0214_rndAll_rcan_continued.pth"
 
     opt.task = 'simin_gtout'
     opt.scale = 1
@@ -189,53 +190,143 @@ def prepimg(stack, self):
     return inputimg, widefield
 
 
-def EvaluateModel(net, opt, stack, outfile):
 
-    print(stack.shape)
-    inputimg, widefield = prepimg(stack, opt)
+def EvaluateModel(net, opt, stackdir, outfile):
 
-    if opt.cmap == 'viridis':
-        cmap = cv2.COLORMAP_VIRIDIS
-    elif opt.cmap == 'magma':
-        cmap = cv2.COLORMAP_MAGMA
-    else:
-        cmap = cv2.COLORMAP_MAGMA
+    inputtensors = None
+    count = 0
 
+    for filepath in glob.glob('%s/*.tif' % stackdir):
+        stack = tiff.imread(filepath, key=range(9))
+        inputimg, widefield = prepimg(stack, opt)
+        inputimg = inputimg.cuda()
+        print('loaded %s' % filepath)
 
-    # skimage.io.imsave('%s_wf.png' % outfile,(255*widefield.numpy()).astype('uint8'))
-    wf = (255*widefield.numpy()).astype('uint8')
-    # should ideally be done by drawing on client side, in javascript
+        if inputtensors is None:
+            inputtensors = inputimg.unsqueeze(0)
+        else:
+            inputtensors = torch.cat([inputtensors, inputimg.unsqueeze(0)], dim=0)
 
-    wf = cv2.applyColorMap(wf, cmap)
-    cv2.imwrite('%s_wf.png' % outfile, wf)
+        if count == 24:
+            break
+        count += 1
 
-    # skimage.io.imsave('%s.tif' % outfile, inputimg.numpy())
+    t0 = time.perf_counter()
 
-    inputimg = inputimg.unsqueeze(0)
+    print('tensors', inputtensors.shape)
 
     with torch.no_grad():
-        if opt.cpu:
-            sr = net(inputimg)
-        else:
-            sr = net(inputimg.cuda())
+        sr = net(inputtensors)
         sr = sr.cpu()
         sr = torch.clamp(sr, min=0, max=1)
-        print('min max', inputimg.min(), inputimg.max())
 
         # pil_img = toPIL(sr[0])
-        sr_img = sr.squeeze().numpy()
         # print(np_img.shape)
         # pil_img = Image.fromarray((np_img*255).astype('uint8'))
 
-    tiff.imwrite('%s.tif' % outfile, sr_img)
-    sr_img = (255*sr_img).astype('uint8')
-    sr_img = exposure.equalize_adapthist(sr_img, clip_limit=0.01)
-    sr_img = (255*sr_img).astype('uint8')
-    cv2.imwrite('%s.png' % outfile, sr_img)
-    sr_img = cv2.applyColorMap(sr_img, cmap)
-    cv2.imwrite('%s_sr.png' % outfile, sr_img)
+    print('time final', time.perf_counter()-t0)
+
+    for fidx in range(sr.shape[0]):
+        oimg = sr[fidx].squeeze()
+        oimg = oimg.numpy()
+        oimg = (255*oimg).astype('uint8')
+        cv2.imwrite('%s_%d.png' % (outfile,fidx), oimg)
 
     # should ideally be done by drawing on client side, in javascript
     # save_image(sr_img, '%s_sr.png' % outfile, cmap)
 
-    return outfile + '_sr.png', outfile + '_wf.png', outfile + '.png'
+
+
+def EvaluateModel_rep(net, opt, stackdir, outfile):
+
+    inputtensors = None
+    count = 0
+    N = 20
+
+    for filepath in glob.glob('%s/*.tif' % stackdir):
+        stack = tiff.imread(filepath, key=range(9))
+        inputimg, widefield = prepimg(stack, opt)
+        inputimg = inputimg.cuda()
+        
+        print('loaded %s' % filepath)
+
+        inputtensors = inputimg.unsqueeze(0)
+
+        for i in range(N):
+            inputtensors = torch.cat([inputtensors, inputimg.unsqueeze(0)], dim=0)
+    
+        break
+
+
+    
+
+    print('tensors', inputtensors.shape)
+
+    # warm up
+    for i in range(3): 
+        with torch.no_grad():
+            sr = net(inputtensors)
+
+
+    # actual timing
+
+    tarr = []
+    
+    for i in range(24): # 24 to get a similar sample size as the other timings
+        t0 = time.perf_counter()
+            
+        with torch.no_grad():
+            sr = net(inputtensors)
+
+
+            # pil_img = toPIL(sr[0])
+            # print(np_img.shape)
+            # pil_img = Image.fromarray((np_img*255).astype('uint8'))
+
+        tdelta = time.perf_counter()-t0
+        tarr.append(tdelta/N)
+        print('time final per image', tdelta/N)
+
+
+    sr = torch.clamp(sr, min=0, max=1)
+    sr = sr.cpu()
+
+    # save only once
+    for fidx in range(sr.shape[0]):
+        oimg = sr[fidx].squeeze()
+        oimg = oimg.numpy()
+        oimg = (255*oimg).astype('uint8')
+        cv2.imwrite('%s_%d.png' % (outfile,fidx), oimg)
+
+
+    print('STATISTICS')
+    tarr = np.array(tarr)
+    print(tarr)
+    print(np.mean(tarr))
+    print(np.std(tarr))
+
+    # should ideally be done by drawing on client side, in javascript
+    # save_image(sr_img, '%s_sr.png' % outfile, cmap)
+    
+
+def reconstruct(exportdir, dirpath):
+    opt = GetOptions_allRnd()
+    model = LoadModel(opt)
+    print('loaded model')
+
+    os.makedirs(exportdir, exist_ok=True)
+
+    outfile = '%s/%s' % (exportdir,
+                         datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:-3])
+
+    # EvaluateModel(model, opt, dirpath, outfile)
+    
+    EvaluateModel_rep(model, opt, dirpath, outfile)
+    
+
+    
+
+
+
+reconstruct('C:/Users/charl/Desktop/MLSIM-kodak-out',
+            'C:/Users/charl/Desktop/ML-SIM-kodak')

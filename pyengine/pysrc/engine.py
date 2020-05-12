@@ -62,7 +62,7 @@ def start_communication(conn, address):
                     img = exposure.rescale_intensity(img, in_range=(p2, p98))
                     print('MIN',np.min(img),'MAX',np.max(img))
                     img = (255*img).astype('uint8')
-                    img = cv2.applyColorMap(img, cv2.COLORMAP_MAGMA)
+                    img = cv2.applyColorMap(img, cv2.COLORMAP_VIRIDIS)
                     cv2.imwrite(thumbpath, img)
 
                 dim = tiff.TiffFile(filepath).series[0].shape

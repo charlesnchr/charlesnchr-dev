@@ -320,10 +320,10 @@ function calculateGeometry(filepaths, imgsize) {
 
   var screenheight = window.innerHeight - sess.topOffset;
   var screenwidth = window.innerWidth - sess.sidePanelWidth;
-  var Nrow = parseInt(screenheight / ((imgsize * 3) / 4 + 2 * 5));
+  var Nrow = parseInt(screenheight / (imgsize + 2 * 5));
   var Ncol = parseInt(screenwidth / (imgsize + 2 * 5));
   var Nblock = Nrow * Ncol;
-  var blockheight = ((imgsize * 3) / 4 + 2 * 5) * Nrow;
+  var blockheight = (imgsize + 2 * 5) * Nrow;
   var baseoffset = sess.topOffset;
   let gridheight;
   if (nimgs === 0) {
@@ -744,7 +744,7 @@ class ImgsizeSlider extends Component {
           <Slider
             value={this.state.imgsize}
             min={200}
-            max={400}
+            max={500}
             onChange={this.imgsizeSlider.bind(this)}
             step={50}
             style={{ width: "150px" }}
@@ -1191,14 +1191,14 @@ class ImgContainer extends Component {
       !sess.thumbJobs.includes(filepath) &&
       !sess.thumbQueue.includes(filepath)
     ) {
-      if (sess.thumbJobs.length > 2) sess.thumbQueue.push(filepath);
+      if (sess.thumbJobs.length > 1) sess.thumbQueue.push(filepath);
       else {
         setTimeout(() => {
           ipcRenderer.send("sendToPython", {
             cmd: "GetThumb",
             arg: filepath,
           });
-        }, 500);
+        }, 200);
         sess.thumbJobs.push(filepath);
         log.info("starting a new job", filepath, sess.thumbJobs.length);
       }
@@ -1505,7 +1505,7 @@ class ImgContainer extends Component {
             key={filepath + "-img"}
             onClick={this.selectImage.bind(this, filepath)}
             width={sess.imgsize}
-            height={(3 / 4) * sess.imgsize}
+            height={sess.imgsize}
             src={filepath}
           />
         );
@@ -1521,7 +1521,7 @@ class ImgContainer extends Component {
                 ...style,
                 ...{
                   width: sess.imgsize,
-                  height: (3 / 4) * sess.imgsize,
+                  height: sess.imgsize,
                   backgroundColor: "rgb(1,1,1,0.2)",
                   display: "flex",
                   alignItems: "center",
@@ -1543,7 +1543,7 @@ class ImgContainer extends Component {
               key={filepath + "-img"}
               onClick={this.selectImage.bind(this, filepath)}
               width={sess.imgsize}
-              height={(3 / 4) * sess.imgsize}
+              height={sess.imgsize}
               src={thumb.src}
             />
           );

@@ -4,7 +4,7 @@
   "license": "MIT",
   "author": "Charles N. Christensen",
   "version": "1.0.1",
-  "private": false,
+  "private": true,
   "workspaces": [
     ".",
     "pyengine"
