@@ -37,7 +37,7 @@ html {
 
 .App-intro {
   font-size: large;
-}
+} 
 
 @keyframes App-logo-spin {
   from { transform: rotate(0deg); }
@@ -54,10 +54,14 @@ html {
     position: relative;
     float:left;
     display:flex;
+    -webkit-user-drag: none;
+    -webkit-user-select: none;
 }
 
 #imgcontainer img {
   /* border: 1px solid black; */
+    -webkit-user-drag: none;
+    -webkit-user-select: none;
 }
 
 

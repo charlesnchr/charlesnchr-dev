@@ -310,7 +310,7 @@ def reconstruct(exportdir,filepaths, conn):
         img = tiff.imread(filepath, key=range(9))
         sr, wf, out = EvaluateModel(model, opt, img, outfile)
         result_arr.append(sr)
-
+    
     conn.send("sd".encode())  # status done
     ready = conn.recv(20).decode()
 

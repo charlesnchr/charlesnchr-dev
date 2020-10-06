@@ -1,10 +1,25 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
-import App from './App';
-import './index.css';
-import 'typeface-roboto'
+import React from "react";
+import ReactDOM from "react-dom";
+import App from "./App";
+import ImageView from "./ImageView";
+import "./index.css";
+import "typeface-roboto";
 
-ReactDOM.render(<App />, document.getElementById('root'));
+import { HashRouter as Router, Switch, Route } from "react-router-dom";
+
+let router = (
+  <Router>
+    <Switch>
+      <Route exact path="/">
+        <App />
+      </Route>
+      <Route path="/test">
+          <ImageView/>
+        </Route>
+    </Switch>
+  </Router>
+);
+ReactDOM.render(router, document.getElementById("root"));
 
 // This file is required by the index.html file and will
 // be executed in the renderer process for that window.

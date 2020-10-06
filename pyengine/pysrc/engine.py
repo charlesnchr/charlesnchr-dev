@@ -11,7 +11,8 @@ from skimage import io, transform, exposure
 import tifffile as tiff
 import hashlib
 import mlsim_misc as mlsim
-from misc import log, set_email, get_email
+from misc import log
+import ernet
 import numpy as np
 import cv2
 
@@ -39,14 +40,12 @@ def start_communication(conn, address):
         args = data.split('\n')
         if len(args) < 2:
             return
-        print('EMAIL IS', args[0])
-        set_email(args[0])
-        print('EMAIL IS AFTER', get_email())
 
-        cmd = args[1]
+        cmd = args[0]
+        args = args[1:]
         if cmd == 'GetThumb':
             log('GetThumb: %s' % str(data))
-            filepath = args[2]
+            filepath = args[0]
             try:
                 md5val = md5file(filepath)
                 cachefolder = mlsim.GetCachefolder()
@@ -77,8 +76,8 @@ def start_communication(conn, address):
                 print('Can now close thread')
         elif cmd == 'Reconstruct':
             log('Reconstruct: %s' % str(data))
-            exportdir = args[2]
-            filepaths = args[3:]
+            exportdir = args[0]
+            filepaths = args[1:]
             try:
                 log('now calling recon')
                 reconpaths = mlsim.reconstruct(exportdir,filepaths,conn)
@@ -92,19 +91,51 @@ def start_communication(conn, address):
             conn.recv(20).decode()  # ready to exit
             if exit():
                 print('Can now close thread')                
-        elif cmd == 'SetUseCloud':
-            log('SetUseCloud: %s' % str(data))
-            mlsim.SetUseCloud(args[2])
-            if exit():
-                print('Can now close thread')
+        elif cmd == 'Plugin_ERNet':
+            log('Plugin_ERNet: %s' % str(data))
+            exportdir = args[0]
+            weka_colours = args[1] == 'true'
+            stats_tubule_sheet = args[2] == 'true'
+            save_in_original_folders = args[3] == 'true'
+            
+            filepaths = []
+            while True:
+                conn.send('p'.encode())  # send paths confirmations
+                data = conn.recv(2048)
+                if chr(data[0]) == 'x':  # decodes the ASCII code
+                    print('received all paths', len(filepaths))
+                    break
+                else:
+                    # equivalent to chr(10), i.e. ASCII code 10
+                    res_chunk = data.split('\n'.encode())
+                    # filepaths.extend(res_chunk)
+                    for e in res_chunk:
+                        filepaths.append(e.decode())
+            
+            if len(filepaths) == 0:
+                if exit():
+                    print('Can now close thread')
+            else:
+                try:
+                    outpaths = ernet.segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,save_in_original_folders)
+                    log('sending back %s' % outpaths)
+                    conn.send(('2' + '\n'.join(outpaths)).encode())
+                except:
+                    errmsg = traceback.format_exc()
+                    log("Error in reconstruct %s" % errmsg)
+                    conn.send(('2' + '\n'.join([])).encode())
+
+                conn.recv(20).decode()  # ready to exit
+                if exit():
+                    print('Can now close thread')                   
         elif cmd == 'exportToFolder' or cmd == 'exportToZip':
             print('export to folder', args[1:])
             if len(args) < 3:
                 if exit():
                     print('Can now close thread')
 
-            exportdir = args[2]
-            files = args[3:]
+            exportdir = args[0]
+            files = args[1:]
 
             newdir = os.path.join(exportdir, 'ML-SIM Export ' +
                                   time.strftime("%Y%m%d-%H%M%S"))
