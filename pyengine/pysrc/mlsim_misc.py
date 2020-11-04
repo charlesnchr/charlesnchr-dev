@@ -316,6 +316,59 @@ def reconstruct(exportdir,filepaths, conn):
 
     return result_arr
 
+# def reconstruct_image(img):
+#     global model
+#     global opt
+
+#     if model is None:
+#         opt = GetOptions_allRnd()
+#         model = LoadModel(opt)
+    
+#     sr = EvaluateModelRealtime(model, opt, img)
+    
+#     return sr
+import asyncio
+import copy
+count = -1
+asyncmodels = []
+num_models = 5
+import threading
+
+class AsyncModel:
+    def __init__(self, opt):
+        self.resultReady = True
+        self.model = LoadModel(opt)
+        self.result = np.zeros((480,512))
+        self.dependency = None
+
+    def getResult(self, opt, img):
+        th = threading.Thread(target=EvaluateModelRealtimeAsync, args=(self, opt, img))
+        th.daemon = True
+        th.start()
+        while not self.dependency.resultReady:
+            time.sleep(0.01)
+        self.dependency.resultReady = False
+        return self.dependency.result
+
+
+def reconstruct_image(img):
+    global asyncmodels
+    global opt
+    global count
+
+    if len(asyncmodels) == 0:
+        opt = GetOptions_allRnd()
+
+        for i in range(num_models):
+            asyncmodels.append(AsyncModel(opt))
+        for i in range(num_models):
+            asyncmodels[i].dependency = asyncmodels[(i+1) % num_models]
+    
+    count += 1
+
+    return asyncmodels[count % num_models].getResult(opt, img)
+
+    
 
 def calcFeatures(filepaths, filepaths_hash, conn):
     global inprogress_calcFeatures

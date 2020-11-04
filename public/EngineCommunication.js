@@ -38,7 +38,7 @@ const sendToPython = (event, json) => {
         json["postIndexOp"]; // prepare to receive paths
       log.info("To socket", msg);
       client.write( msg);
-    } else if (json["cmd"] == "Plugin_ERNet") {
+    } else if (json["cmd"].includes("Plugin")) {
       // start chunked sending of filepaths
       filepaths = json["filepaths"];
       var msg =

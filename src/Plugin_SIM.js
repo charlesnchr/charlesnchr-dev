@@ -18,19 +18,7 @@ const log = window.require("electron-log");
 const remote = window.require("electron").remote;
 var sess = require("./sess.js");
 
-function reconstructImages(args) {
-    if (args.filepath.length < 1) {
-      ipcRenderer.send("open-singlefile-dialog");
-    } else {
-      ipcRenderer.send("sendToPython", {
-        cmd: "Reconstruct",
-        arg:
-          remote.getGlobal("settings").exportdir +
-          "\n" +
-          args.filepath.join("\n"),
-      });
-    }
-  }
+
 
 const mytheme = createMuiTheme({
   palette: {
@@ -70,6 +58,29 @@ export default class Plugin_SIM extends Component {
     this.state = {
         panelTitle: 'ML-SIM'
     }
+  }
+  
+  reconstructImages() {
+    let filepaths;
+    if (sess.selectedFilepaths.length > 0)
+      filepaths = sess.selectedFilepaths;
+    else filepaths = sess.filepaths;
+
+      // ipcRenderer.send("open-singlefile-dialog");
+    // ipcRenderer.send("sendToPython", {
+    //   cmd: "Reconstruct",
+    //   arg:
+    //     remote.getGlobal("settings").exportdir +
+    //     "\n" +
+    //     args.filepath.join("\n"),
+    // });
+    // }
+    ipcRenderer.send("sendToPython", {
+      cmd: "Plugin_MLSIM",
+      filepaths: filepaths,
+      arg:
+        remote.getGlobal("settings").exportdir
+    });
   }
 
   render() {
@@ -120,9 +131,7 @@ export default class Plugin_SIM extends Component {
                   backgroundColor: grey[700],
                   color: grey[300],
                 }}
-                onClick={reconstructImages.bind(this, {
-                  filepath: sess.selectedFilepaths,
-                })}
+                onClick={this.reconstructImages.bind(this)}
                 variant="contained"
               >
                 <PlayArrowIcon style={{ fontSize: 15 }} />

@@ -27,10 +27,13 @@ class ImageView extends Component {
         style={{
           display: "table",
           marginLeft: "auto",
-          width: 300,
-          height: 300,
+          width: 800,
+          height: 600,
           marginRight: "auto",
-          background: `url("file:///${this.state.filepath}") no-repeat center`,
+          backgroundImage: `url("file:///${this.state.filepath}")`,
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center',
+          backgroundSize: 'cover',
         }}
       >
         {this.state.filepath}

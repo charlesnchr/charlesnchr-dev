@@ -59,7 +59,7 @@ def GetOptions_allRnd():
     opt.n_feats = 96
     opt.reduction = 16
     opt.narch = 0
-    opt.norm = 'adapthist'
+    opt.norm = 'minmax'
     opt.cmap = 'viridis'
 
     opt.cpu = False
@@ -189,7 +189,7 @@ def prepimg(stack, self):
     return inputimg, widefield
 
 
-def EvaluateModel(net, opt, stack, outfile):
+def EvaluateModel(net, opt, stack, outfile=None):
 
     print(stack.shape)
     inputimg, widefield = prepimg(stack, opt)
@@ -202,14 +202,15 @@ def EvaluateModel(net, opt, stack, outfile):
         cmap = cv2.COLORMAP_MAGMA
 
 
-    # skimage.io.imsave('%s_wf.png' % outfile,(255*widefield.numpy()).astype('uint8'))
-    wf = (255*widefield.numpy()).astype('uint8')
-    # should ideally be done by drawing on client side, in javascript
+    if outfile is not None:
+        # skimage.io.imsave('%s_wf.png' % outfile,(255*widefield.numpy()).astype('uint8'))
+        wf = (255*widefield.numpy()).astype('uint8')
+        # should ideally be done by drawing on client side, in javascript
 
-    wf = cv2.applyColorMap(wf, cmap)
-    cv2.imwrite('%s_wf.png' % outfile, wf)
+        wf = cv2.applyColorMap(wf, cmap)
+        cv2.imwrite('%s_wf.png' % outfile, wf)
 
-    # skimage.io.imsave('%s.tif' % outfile, inputimg.numpy())
+        # skimage.io.imsave('%s.tif' % outfile, inputimg.numpy())
 
     inputimg = inputimg.unsqueeze(0)
 
@@ -227,15 +228,111 @@ def EvaluateModel(net, opt, stack, outfile):
         # print(np_img.shape)
         # pil_img = Image.fromarray((np_img*255).astype('uint8'))
 
-    tiff.imwrite('%s.tif' % outfile, sr_img)
+    if outfile is not None:
+        tiff.imwrite('%s.tif' % outfile, sr_img)
+    
     sr_img = (255*sr_img).astype('uint8')
     sr_img = exposure.equalize_adapthist(sr_img, clip_limit=0.01)
     sr_img = (255*sr_img).astype('uint8')
-    cv2.imwrite('%s.png' % outfile, sr_img)
-    sr_img = cv2.applyColorMap(sr_img, cmap)
-    cv2.imwrite('%s_sr.png' % outfile, sr_img)
+
+    if outfile is not None:
+        cv2.imwrite('%s.png' % outfile, sr_img)
+        sr_img = cv2.applyColorMap(sr_img, cmap)
+        cv2.imwrite('%s_sr.png' % outfile, sr_img)
+        return outfile + '_sr.png', outfile + '_wf.png', outfile + '.png'
+    else:
+        return sr_img
 
     # should ideally be done by drawing on client side, in javascript
     # save_image(sr_img, '%s_sr.png' % outfile, cmap)
 
-    return outfile + '_sr.png', outfile + '_wf.png', outfile + '.png'
+
+
+def EvaluateModelRealtime(net, opt, stack):
+
+    print(stack.shape)
+    # inputimg, widefield = prepimg(stack, opt)
+    inputimg = stack[:, :512, :512]
+    inputimg = inputimg.astype('float') / np.max(inputimg)  # used to be /255
+    inputimg = torch.tensor(inputimg).float()
+
+    # inputimg = torch.tensor(stack)
+
+    if opt.cmap == 'viridis':
+        cmap = cv2.COLORMAP_VIRIDIS
+    elif opt.cmap == 'magma':
+        cmap = cv2.COLORMAP_MAGMA
+    else:
+        cmap = cv2.COLORMAP_MAGMA
+
+    inputimg = inputimg.unsqueeze(0)
+
+    with torch.no_grad():
+        if opt.cpu:
+            sr = net(inputimg)
+        else:
+            sr = net(inputimg.cuda())
+            # sr = inputimg[:,0,:,:]#.cuda()
+        sr = sr.cpu()
+        sr = torch.clamp(sr, min=0, max=1)
+        print('min max', inputimg.min(), inputimg.max())
+
+        # pil_img = toPIL(sr[0])
+        sr_img = sr.squeeze().numpy()
+        # print(np_img.shape)
+        # pil_img = Image.fromarray((np_img*255).astype('uint8'))
+
+    sr_img = (255*sr_img).astype('uint8')
+    # sr_img = exposure.equalize_adapthist(sr_img, clip_limit=0.01)
+    # sr_img = (255*sr_img).astype('uint8')
+
+    return sr_img
+
+    # should ideally be done by drawing on client side, in javascript
+    # save_image(sr_img, '%s_sr.png' % outfile, cmap)
+
+
+def EvaluateModelRealtimeAsync(asyncmodel, opt, stack):
+
+    time.sleep(np.random.randint(1,10)/20) # attempt to space out delivery of frames
+    
+    print(stack.shape)
+    # inputimg, widefield = prepimg(stack, opt)
+    inputimg = stack[:, :512, :512]
+    inputimg = inputimg.astype('float') / np.max(inputimg)  # used to be /255
+    inputimg = torch.tensor(inputimg).float()
+
+    # inputimg = torch.tensor(stack)
+
+
+    inputimg = inputimg.unsqueeze(0)
+
+    with torch.no_grad():
+        if opt.cpu:
+            sr = asyncmodel.model(inputimg)
+        else:
+            sr = asyncmodel.model(inputimg.cuda())
+            # sr = inputimg[:,0,:,:]#.cuda()
+        sr = sr.cpu()
+        sr = torch.clamp(sr, min=0, max=1)
+        print('min max', inputimg.min(), inputimg.max())
+
+        # pil_img = toPIL(sr[0])
+        sr_img = sr.squeeze().numpy()
+        # print(np_img.shape)
+        # pil_img = Image.fromarray((np_img*255).astype('uint8'))
+
+    sr_img = (255*sr_img).astype('uint8')
+    # sr_img = exposure.equalize_adapthist(sr_img, clip_limit=0.01)
+    # sr_img = (255*sr_img).astype('uint8')
+
+    # np.copyto(out,sr_img)
+    asyncmodel.result = sr_img
+    asyncmodel.resultReady = True
+    
+    # out = np.copy(sr_img)
+    # return sr_img
+
+    # should ideally be done by drawing on client side, in javascript
+    # save_image(sr_img, '%s_sr.png' % outfile, cmap)
+

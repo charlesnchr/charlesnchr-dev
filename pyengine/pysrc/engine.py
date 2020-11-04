@@ -15,7 +15,11 @@ from misc import log
 import ernet
 import numpy as np
 import cv2
-
+from PIL import Image
+import io
+import pickle 
+import matplotlib.pyplot as plt
+from skimage import filters
 
 def md5file(filename):
     with open(filename, "rb") as file:
@@ -74,23 +78,41 @@ def start_communication(conn, address):
             conn.recv(20).decode()  # ready to exit
             if exit():
                 print('Can now close thread')
-        elif cmd == 'Reconstruct':
-            log('Reconstruct: %s' % str(data))
+        elif cmd == 'Plugin_MLSIM':
+            log('ML-SIM Reconstruct: %s' % str(data))
             exportdir = args[0]
-            filepaths = args[1:]
-            try:
-                log('now calling recon')
-                reconpaths = mlsim.reconstruct(exportdir,filepaths,conn)
-                log('sending back %s' % reconpaths)
-                conn.send(('2' + '\n'.join(reconpaths)).encode())
-            except:
-                errmsg = traceback.format_exc()
-                log("Error in reconstruct %s" % errmsg)
-                conn.send(('2' + '\n'.join([])).encode())
+            
+            filepaths = []
+            while True:
+                conn.send('p'.encode())  # send paths confirmations
+                data = conn.recv(2048)
+                if chr(data[0]) == 'x':  # decodes the ASCII code
+                    print('received all paths', len(filepaths))
+                    break
+                else:
+                    # equivalent to chr(10), i.e. ASCII code 10
+                    res_chunk = data.split('\n'.encode())
+                    # filepaths.extend(res_chunk)
+                    for e in res_chunk:
+                        filepaths.append(e.decode())
+            
+            if len(filepaths) == 0:
+                if exit():
+                    print('Can now close thread')
+            else:
+                try:
+                    log('now calling recon')
+                    reconpaths = mlsim.reconstruct(exportdir,filepaths,conn)
+                    log('sending back %s' % reconpaths)
+                    conn.send(('2' + '\n'.join(reconpaths)).encode())
+                except:
+                    errmsg = traceback.format_exc()
+                    log("Error in reconstruct %s" % errmsg)
+                    conn.send(('2' + '\n'.join([])).encode())
 
-            conn.recv(20).decode()  # ready to exit
-            if exit():
-                print('Can now close thread')                
+                conn.recv(20).decode()  # ready to exit
+                if exit():
+                    print('Can now close thread')                
         elif cmd == 'Plugin_ERNet':
             log('Plugin_ERNet: %s' % str(data))
             exportdir = args[0]
@@ -184,6 +206,93 @@ def start_communication(conn, address):
         # send_log(errmsg)
 
 
+def receiveImage(conn,npixels,w,h):
+    
+    bytesstr = None
+    count = 0
+
+    while True:
+        conn.send('i'.encode())  # send image data
+        data = conn.recv(2000)
+        if bytesstr is None:
+            bytesstr = data
+        else:
+            bytesstr += data
+
+        count += 1
+        # print('%d batch, added now %d' % (count,len(bytesstr)))
+        if len(bytesstr) >= npixels:
+            # print('received all bytes')
+            # pickle.dump(bytesstr,open('data.pkl','wb'))
+            # print('saved as npy')
+            conn.send('c'.encode())
+            img = Image.frombuffer("RGBA",(w,h),bytesstr,"raw","BGRA").convert("RGB")
+            # img = filters.sobel(np.array(img).mean(2))
+            
+            return np.array(img)
+
+
+def start_plugin_server(conn, address):
+    try:
+        log('connection from %s' % str(address))
+
+
+
+        # receive data stream. it won't accept data packet greater than 2048 bytes  
+        count = 0
+        t0 = time.perf_counter()
+        fps = np.ones((10,))
+
+        plt.figure(figsize=(9,6),frameon=False)
+        ax = plt.subplot(111,aspect = 'equal')
+        plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+
+        while True:
+            data = conn.recv(2048).decode()
+            vals = data.split(",")
+            npixels = int(vals[0])
+            w = int(vals[1])
+            h = int(vals[2])
+            bytesPerPixel = int(vals[3])
+            numComponents = int(vals[4])
+            # npixels = int.from_bytes(data,"big",signed=True)
+            # print("Received",data)
+            # print('received npixels',npixels)
+            if npixels > 0:
+                img = receiveImage(conn,npixels,w,h)
+                stack = np.zeros((9,h,w))
+                stack[0,:,:] = img[:,:,0]
+                stack[1,:,:] = img[:,:,1]
+                stack[2,:,:] = img[:,:,2]
+                stack[3,:,:] = img[:,:,0]
+                stack[4,:,:] = img[:,:,1]
+                stack[5,:,:] = img[:,:,2]
+                stack[6,:,:] = img[:,:,0]
+                stack[7,:,:] = img[:,:,1]
+                stack[8,:,:] = img[:,:,2]
+                sr = mlsim.reconstruct_image(stack)
+                print('here with',sr.shape)
+
+                # plt.cla()
+                # plt.gca().imshow(sr,cmap='magma')
+                # plt.pause(0.01)
+                
+                # print('received img',img.size)
+                fps[count % 10] = 1 / (time.perf_counter() - t0)
+                count += 1
+                t0 = time.perf_counter()
+                print('img #%d (%dx%d) (%d,%d) - fps: %0.3f' % (count,w,h,bytesPerPixel,numComponents,fps.mean()))
+                continue
+            else:
+                print('received',data,'exiting')
+                break
+        
+    except Exception as e:
+        errmsg = traceback.format_exc()
+        log(errmsg)
+        # send_log(errmsg)
+
+
 def socketserver():
     log('starting socketserver')
     host = 'localhost'
@@ -198,7 +307,7 @@ def socketserver():
     while True:
         print('now listening')
         conn, address = server_socket.accept()  # accept new connection
-        th = threading.Thread(target=start_communication, args=(conn, address))
+        th = threading.Thread(target=start_plugin_server, args=(conn, address))
         th.daemon = True
         th.start()
 
