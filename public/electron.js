@@ -26,12 +26,12 @@ const appData = app.getPath("appData");
 
 let exportdir = store.get("exportdir");
 if (exportdir == null) {
-  exportdir = path.join(app.getPath("documents"), "ML-SIM");
+  exportdir = path.join(app.getPath("documents"), "Mambio");
   store.set("exportdir", exportdir);
 }
 let cachedir = store.get("cachedir");
 if (cachedir == null) {
-  cachedir = path.join(appData, "ML-SIM-Library", "2");
+  cachedir = path.join(appData, "Mambio-Library", "2");
   store.set("cachedir", cachedir);
 }
 

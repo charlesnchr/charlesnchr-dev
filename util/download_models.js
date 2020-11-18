@@ -7,7 +7,7 @@ const crypto = require("crypto");
 
 const pipeline = promisify(stream.pipeline);
 
-let baseurl = "https://mlsim.s3.eu-west-2.amazonaws.com/pdist";
+let baseurl = "https://ml-sim.s3.eu-west-2.amazonaws.com/pdist";
 let total_downloaded = 0;
 let total_to_download = 0;
 let prev_val = null;

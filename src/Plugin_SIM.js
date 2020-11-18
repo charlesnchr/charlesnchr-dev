@@ -4,6 +4,8 @@ import CalcStatus from "./CalcStatus";
 
 import ExtensionIcon from '@material-ui/icons/Extension';
 import Button from "@material-ui/core/Button";
+import Switch from "@material-ui/core/Switch";
+import FormControlLabel from "@material-ui/core/FormControlLabel";
 import FormControl from "@material-ui/core/FormControl";
 import InputLabel from "@material-ui/core/InputLabel";
 import MenuItem from "@material-ui/core/MenuItem";
@@ -25,6 +27,11 @@ const mytheme = createMuiTheme({
     type: "dark",
   },
   overrides: {
+    MuiFormControlLabel: {
+      label:{
+        fontSize: 12
+      }
+    },
     MuiInputLabel: {
       root: {
         "&$focused": {
@@ -56,10 +63,24 @@ export default class Plugin_SIM extends Component {
   constructor(props) {
     super(props);
     this.state = {
-        panelTitle: 'ML-SIM'
+        panelTitle: 'ML-SIM',
+        MM_integration: false
     }
   }
   
+  MM_integration_handler() {
+    log.info('Sending activation signal for MM_integration to Python engine')
+    let MM_integration = !this.state.MM_integration;
+    let MM_integration_str = MM_integration ? 'on' : 'off';
+    let port = 5003;
+
+    ipcRenderer.send("sendToPython", {
+      cmd: "Plugin_MLSIM_MM_integration",
+      arg: MM_integration_str + "\n" + port
+    });
+    this.setState({MM_integration:MM_integration});
+  }
+
   reconstructImages() {
     let filepaths;
     if (sess.selectedFilepaths.length > 0)
@@ -75,6 +96,7 @@ export default class Plugin_SIM extends Component {
     //     args.filepath.join("\n"),
     // });
     // }
+    
     ipcRenderer.send("sendToPython", {
       cmd: "Plugin_MLSIM",
       filepaths: filepaths,
@@ -150,6 +172,20 @@ export default class Plugin_SIM extends Component {
                     </MenuItem>
                   </Select>
                 </FormControl>
+                <FormControlLabel
+                  style={{ marginTop:"20px", marginLeft: "0px", width: "100%", color: "#D9D9D9" }}
+                  label="μManager integration"
+                  labelPlacement="top"
+                  control={
+                    <Switch
+                      checked={this.state.MM_integration}
+                      onChange={this.MM_integration_handler.bind(this)}
+                      value="useCloud"
+                      color="primary"
+                      size="small"
+                    />
+                  }
+                />
               </ThemeProvider>
             </Grid>
           </Grid>

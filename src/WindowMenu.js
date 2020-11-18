@@ -11,10 +11,47 @@ const isDev = window.require("electron-is-dev");
 var sess = require("./sess.js");
 // var pluginDict = require("./pluginDict.js");
 
+let allPluginOptions = [{ name: "ML-SIM" }, { name: "ERNet" }];
+let allowMultiplePlugins = false;
+let previousPluginMenu;
+
+let setPlugins = (plugin) => {
+  let plugins = store.get("plugins");
+  let checked = plugins.includes(plugin.name);
+  if (checked) {
+    plugins = plugins.filter((e) => e !== plugin.name);
+    store.set("plugins", plugins);
+  } else {
+    if (allowMultiplePlugins) {
+      plugins.push(plugin.name); // if more than one plugin should be allowed
+    } else {
+      plugins = [plugin.name];
+    }
+    Render(plugins);
+    store.set("plugins", plugins);
+  }
+  sess.updateSidePanelPlugins(plugins);
+};
+
+
+let getPluginSubmenu = (checkedPlugins) => {
+  let pluginSubmenu = [];
+  allPluginOptions.forEach((plugin) => {
+    pluginSubmenu.push({
+      label: plugin.name,
+      type: "checkbox",
+      checked: checkedPlugins.includes(plugin.name),
+      click: () => setPlugins(plugin)
+    });
+  });
+  return pluginSubmenu;
+}
+
+
 /*************************************************************
  * Menu
  *************************************************************/
-function Render(profilename) {
+function Render(checkedPlugins) {
   let file_submenu = [];
   if (sess.settingsHandler != null) {
     file_submenu.push({
@@ -114,31 +151,20 @@ function Render(profilename) {
     },
   ];
 
-  let pluginSubmenu = [];
-  [{ name: "ML-SIM" }, { name: "ERNet" }].forEach((plugin) => {
-    pluginSubmenu.push({
-      label: plugin.name,
-      type: "checkbox",
-      checked: store.get("plugins").includes(plugin.name),
-      click: async () => {
-        let plugins = store.get("plugins");
-        let checked = plugins.includes(plugin.name);
-        if (checked) {
-          plugins = plugins.filter((e) => e !== plugin.name);
-          store.set("plugins", plugins);
-        } else {
-          plugins.push(plugin.name);
-          store.set("plugins", plugins);
-        }
-        sess.updateSidePanelPlugins(plugins);
-      },
-    });
-  });
+  let pluginSubmenu;
+
+  if(checkedPlugins == null) { // init
+    pluginSubmenu = getPluginSubmenu(store.get("plugins"));
+  } else {
+    pluginSubmenu = getPluginSubmenu(checkedPlugins)
+  }
 
   template.push({
     label: "Plugins",
     submenu: pluginSubmenu,
   });
+
+  previousPluginMenu = pluginSubmenu;
 
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);

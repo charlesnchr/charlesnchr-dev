@@ -236,18 +236,8 @@ class App extends Component {
 
     sess.settingsHandler = this.settingsOpen.bind(this);
     sess.aboutHandler = this.aboutOpen.bind(this);
-    if (
-      this.state.loggedIn === true &&
-      this.state.firstname &&
-      this.state.lastname
-    ) {
-      // log.info("setting loggedin", this.state.firstname, this.state.lastname);
-      // ipcRenderer.send('WindowMenu.renderMenu',this.state.firstname + ' ' + this.state.lastname, sess.settingsHandler)
-      WindowMenu.Render(this.state.firstname + " " + this.state.lastname);
-    } else {
-      // ipcRenderer.send('WindowMenu.renderMenu')
-      WindowMenu.Render();
-    }
+
+    WindowMenu.Render();
   }
 
   componentDidUpdate() {
@@ -372,9 +362,9 @@ class App extends Component {
             marginLeft: sess.sidePanelWidth,
           }}
         >
-          The search engine is now installed! &nbsp;
+          The Python engine is now installed! &nbsp;
           <span style={{ fontWeight: "normal" }}>
-            Indexing of your images can begin.
+            Processing of your images can begin.
           </span>
         </div>
       );

@@ -7,8 +7,6 @@ const { ipcMain, dialog } = require("electron");
 const Store = require("electron-store");
 const store = new Store();
 
-
-
 /*************************************************************
  * Nodejs socket client
  *************************************************************/
@@ -25,35 +23,15 @@ const sendToPython = (event, json) => {
 
   var client = new net.Socket();
   client.connect(5002, "127.0.0.1", function() {
-    if (json["cmd"] == "calcFeatures") {
-      // start chunked sending of filepaths
-      filepaths = json["arg"];
-      var msg =
-        "calcFeatures" +
-        "\n" +
-        json["filepaths_hash"] +
-        "\n" +
-        filepaths.length +
-        "\n" +
-        json["postIndexOp"]; // prepare to receive paths
-      log.info("To socket", msg);
-      client.write( msg);
-    } else if (json["cmd"].includes("Plugin")) {
+    if (filepaths in json) {
       // start chunked sending of filepaths
       filepaths = json["filepaths"];
-      var msg =
-        json["cmd"] +
-        "\n" +
-        json["arg"]
-        "\n" +
-        filepaths.length
+      var msg = json["cmd"] + "\n" + json["arg"];
+      "\n" + filepaths.length;
       log.info("To socket", msg);
       client.write(msg);
     } else {
-      var msg =
-        json["cmd"] +
-        "\n" +
-        json["arg"];
+      var msg = json["cmd"] + "\n" + json["arg"];
       log.info("To socket", msg);
       client.write(msg);
     }
@@ -181,11 +159,10 @@ const createPyProc = (use_pysrc, script) => {
 };
 
 const exitEngine = () => {
-    log.info("exited Python socket server");
-    pyProc.kill();
-    pyProc = null;
-  };
-  
+  log.info("exited Python socket server");
+  pyProc.kill();
+  pyProc = null;
+};
 
 const waitForPython = () => {
   const client = new net.Socket();
@@ -206,15 +183,20 @@ const waitForPython = () => {
 };
 
 ipcMain.on("sendToPython", (event, json) => {
-    log.info(json["cmd"]);
-    sendToPython(event, json);
-  });
+  log.info(json["cmd"]);
+  sendToPython(event, json);
+});
 
-  ipcMain.on("isServerActive", (event) => {
-    if (serverActive) event.sender.send("serverActive");
-  });
+ipcMain.on("isServerActive", (event) => {
+  if (serverActive) event.sender.send("serverActive");
+});
 
-
-  module.exports = {
-    createPyProc, exitEngine, serverActive
+const get_serverActive = () => {
+  return serverActive
 }
+
+module.exports = {
+  createPyProc,
+  exitEngine,
+  get_serverActive,
+};

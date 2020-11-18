@@ -90,7 +90,7 @@ const get_latest_json = async () => {
         if (downloads_in_progress == 0) {
           log.info("Engine setup complete");
           store.set("pdist_version", pdist_json.version);
-          createPyProc(use_pysrc, pythonProgramPath);
+          engineCommunication.createPyProc(use_pysrc, pythonProgramPath);
           return;
         }
       });
@@ -286,7 +286,7 @@ const get_latest_json = async () => {
                   if (!extraction_in_progress) {
                     log.info("Engine setup complete");
                     store.set("pdist_version", pdist_json.version);
-                    createPyProc(use_pysrc, pythonProgramPath);
+                    engineCommunication.createPyProc(use_pysrc, pythonProgramPath);
                     return;
                   }
                 }
@@ -312,7 +312,7 @@ const get_latest_json = async () => {
   const initEngine = async () => {
     // attach listener (app ready event inside initEngine)
     ipcMain.on("EngineStatus", (event, json) => {
-      if (engineCommunication.serverActive) {
+      if (engineCommunication.get_serverActive()) {
         event.sender.send("EngineStatus", "a");
       } else if (downloads_in_progress > 0) {
         let frac = parseFloat(total_downloaded) / parseFloat(total_to_download);
@@ -340,7 +340,7 @@ const get_latest_json = async () => {
       if (setup_pdist === false && setup_models.length === 0) {
         log.info("nodownloadsneeded-startingnow");
   
-        createPyProc(use_pysrc, pythonProgramPath);
+        engineCommunication.createPyProc(use_pysrc, pythonProgramPath);
         return;
       } else {
         setupEngine();
