@@ -1,11 +1,12 @@
 import sys
 import os
-from skimage import io
+# from skimage import io
 import matplotlib.pyplot as plt
 import time
+import numpy as np
 
 initdir = os.getcwd()
-MM_path = 'C:\\Program Files\\Micro-Manager-1.4'
+MM_path = 'C:\\Program Files\\Micro-Manager-2.0gamma'
 sys.path.append(MM_path)
 import MMCorePy # requires the above path
 os.chdir(MM_path) # necessary
@@ -14,9 +15,9 @@ os.chdir(MM_path) # necessary
 mmc = MMCorePy.CMMCore()  # Instance micromanager core
 print mmc.getVersionInfo()
 print mmc.getAPIVersionInfo()
-mmc.loadDevice("OpenCVgrabber","OpenCVgrabber","OpenCVgrabber")
+mmc.loadDevice("pco_camera","pco_camera","pco_camera")
 mmc.initializeAllDevices()
-mmc.setCameraDevice('OpenCVgrabber')
+mmc.setCameraDevice('pco_camera')
 
 
 # Save image
@@ -30,20 +31,22 @@ fig, ax = plt.subplots()
 
 os.chdir(initdir)
 
-for i in range(10):
-    # mmc.snapImage()
+for i in range(100):
+    mmc.snapImage()
     img = mmc.getImage()
 
-    plt.cla()
-    plt.imshow(img,cmap='magma')
+    print(np.array(img).shape)
+
+    # plt.cla()
+    # plt.imshow(img,cmap='magma')
 
     fpsval = 1 / (time.clock() - t0)
     
     fps = 'FPS: %0.1f' % fpsval
     t0 = time.clock()
     print(fps)
-    plt.title(fps)
-    plt.pause(0.01)
+    # plt.title(fps)
+    # plt.pause(0.01)
 
 
 print('done')
