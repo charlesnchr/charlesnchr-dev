@@ -10,12 +10,8 @@ import { HashRouter as Router, Switch, Route } from "react-router-dom";
 let router = (
   <Router>
     <Switch>
-      <Route exact path="/">
-        <App />
-      </Route>
-      <Route path="/test">
-          <ImageView/>
-        </Route>
+      <Route exact path="/" component={App}/>
+      <Route exact path="/imageview" component={ImageView}/>
     </Switch>
   </Router>
 );

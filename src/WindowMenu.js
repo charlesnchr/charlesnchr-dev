@@ -27,7 +27,7 @@ let setPlugins = (plugin) => {
     } else {
       plugins = [plugin.name];
     }
-    Render(plugins);
+    WindowMenuRender(plugins);
     store.set("plugins", plugins);
   }
   sess.updateSidePanelPlugins(plugins);
@@ -51,7 +51,7 @@ let getPluginSubmenu = (checkedPlugins) => {
 /*************************************************************
  * Menu
  *************************************************************/
-function Render(checkedPlugins) {
+const WindowMenuRender = (checkedPlugins) => {
   let file_submenu = [];
   if (sess.settingsHandler != null) {
     file_submenu.push({
@@ -170,6 +170,4 @@ function Render(checkedPlugins) {
   Menu.setApplicationMenu(menu);
 }
 
-module.exports = {
-  Render,
-};
+export default WindowMenuRender;

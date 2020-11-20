@@ -18,6 +18,7 @@ import ImgsizeSlider from "./ImgsizeSlider";
 import SidePanel from "./SidePanel";
 import AppUpdate from "./AppUpdate";
 import AboutMenu from "./AboutMenu";
+import WindowMenuRender from "./WindowMenu";
 
 import logo from "./logo.png";
 
@@ -25,6 +26,7 @@ import Backdrop from "@material-ui/core/Backdrop";
 import CircularProgress from "@material-ui/core/CircularProgress";
 
 import { createMuiTheme, ThemeProvider } from "@material-ui/core/styles";
+
 
 const { ipcRenderer } = window.require("electron");
 const shell = window.require("electron").shell;
@@ -45,7 +47,6 @@ const isDev = window.require("electron-is-dev");
 
 var sess = require("./sess.js");
 
-var WindowMenu = require("./WindowMenu.js");
 var FileUtils = require("./FileUtils.js");
 
 if (isDev && false) sess.baseurl = "http://localhost:5000"; // dev of authentication etc.
@@ -160,7 +161,7 @@ class App extends Component {
     store.set("loggedIn_firstname", null);
     store.set("loggedIn_lastname", null);
     store.set("loggedIn_emailaddr", null);
-    WindowMenu.Render();
+    WindowMenuRender();
   }
 
   componentDidMount() {
@@ -237,7 +238,7 @@ class App extends Component {
     sess.settingsHandler = this.settingsOpen.bind(this);
     sess.aboutHandler = this.aboutOpen.bind(this);
 
-    WindowMenu.Render();
+    WindowMenuRender();
   }
 
   componentDidUpdate() {

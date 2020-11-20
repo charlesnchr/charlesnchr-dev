@@ -3,7 +3,7 @@
   "description": "Deep neural network for reconstruction of structured illumination microscopy images",
   "license": "MIT",
   "author": "Charles N. Christensen",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
   "workspaces": [
     ".",

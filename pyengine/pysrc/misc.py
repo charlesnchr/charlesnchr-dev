@@ -1,11 +1,17 @@
 import requests
 import datetime
 import traceback
-
+import tifffile as tiff
+from skimage import io, transform, exposure
+import numpy as np
+import cv2
+import os
+import os.path
 
 print('Initting misc')
 fid = open('socketserver.log', 'a+')
-
+cachefolder = None
+useCloud = False
 
 def _get_fid():
     global fid
@@ -21,6 +27,21 @@ def log(text):
               (datetime.datetime.now().strftime("%d/%m/%Y-%H:%M:%S"), text))
     fid.flush()
 
+def GetCachefolder():
+    global cachefolder
+    return cachefolder
+
+def SetCachefolder(value):
+    global cachefolder
+    cachefolder = value
+
+def SetUseCloud(val):
+    global useCloud
+    if int(val) == 1:
+        useCloud = True
+    else:
+        useCloud = False
+    log("useCloud is now %d " % useCloud)
 
 import tifffile as tiff
 from skimage import io, transform, exposure
@@ -34,7 +55,7 @@ def GetThumb(args):
     filepath = args[0]
     try:
         md5val = md5file(filepath)
-        cachefolder = mlsim.GetCachefolder()
+        cachefolder = GetCachefolder()
         thumbpath = '%s/%s.jpg' % (cachefolder, md5val)
 
         # create thumb

@@ -9,7 +9,7 @@ import time
 import zipfile
 
 import mlsim_misc as mlsim
-from misc import log
+import misc
 import ernet
 
 
@@ -24,11 +24,11 @@ def run_command(conn, address):
             return False
 
     try:
-        log('connection from %s' % str(address))
+        misc.log('connection from %s' % str(address))
 
         # receive data stream. it won't accept data packet greater than 2048 bytes
         data = conn.recv(2048).decode()
-        log('received data: %s' % data)
+        misc.log('received data: %s' % data)
         argin = data.split('\n')
         if len(argin) < 2:
             return
@@ -36,14 +36,14 @@ def run_command(conn, address):
         cmd = argin[0]
         args = argin[1:]
         if cmd == 'GetThumb':
-            log('GetThumb: %s' % str(data))
+            misc.log('GetThumb: %s' % str(data))
             res = misc.GetThumb(args)
             conn.send(res.encode())
             conn.recv(20).decode()  # ready to exit
             if exit():
                 print('Can now close thread')
         elif cmd == 'Plugin_MLSIM':
-            log('ML-SIM Reconstruct: %s' % str(data))
+            misc.log('ML-SIM Reconstruct: %s' % str(data))
             exportdir = args[0]
             
             filepaths = []
@@ -65,26 +65,26 @@ def run_command(conn, address):
                     print('Can now close thread')
             else:
                 try:
-                    log('now calling recon')
+                    misc.log('now calling recon')
                     reconpaths = mlsim.reconstruct(exportdir,filepaths,conn)
-                    log('sending back %s' % reconpaths)
+                    misc.log('sending back %s' % reconpaths)
                     conn.send(('2' + '\n'.join(reconpaths)).encode())
                 except:
                     errmsg = traceback.format_exc()
-                    log("Error in reconstruct %s" % errmsg)
+                    misc.log("Error in reconstruct %s" % errmsg)
                     conn.send(('2' + '\n'.join([])).encode())
 
                 conn.recv(20).decode()  # ready to exit
                 if exit():
                     print('Can now close thread')                
         elif cmd == 'Plugin_MLSIM_MM_integration':
-            log('MLSIM Micromanager server toggled')
+            misc.log('MLSIM Micromanager server toggled')
             desiredState = args[0]
             port = int(args[1])
             mlsim.handle_microManagerPluginState(desiredState, port)
 
         elif cmd == 'Plugin_ERNet':
-            log('Plugin_ERNet: %s' % str(data))
+            misc.log('Plugin_ERNet: %s' % str(data))
             exportdir = args[0]
             weka_colours = args[1] == 'true'
             stats_tubule_sheet = args[2] == 'true'
@@ -110,11 +110,11 @@ def run_command(conn, address):
             else:
                 try:
                     outpaths = ernet.segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,save_in_original_folders)
-                    log('sending back %s' % outpaths)
+                    misc.log('sending back %s' % outpaths)
                     conn.send(('2' + '\n'.join(outpaths)).encode())
                 except:
                     errmsg = traceback.format_exc()
-                    log("Error in reconstruct %s" % errmsg)
+                    misc.log("Error in reconstruct %s" % errmsg)
                     conn.send(('2' + '\n'.join([])).encode())
 
                 conn.recv(20).decode()  # ready to exit
@@ -169,16 +169,16 @@ def run_command(conn, address):
                 print('Can now close thread')
 
         conn.close()  # close the connection
-        log('exited thread %s' % str(address))
+        misc.log('exited thread %s' % str(address))
     except Exception as e:
         errmsg = traceback.format_exc()
-        log(errmsg)
-        # send_log(errmsg)
+        misc.log(errmsg)
+        # send_misc.log(errmsg)
 
 
 
 def socketserver():
-    log('starting socketserver')
+    misc.log('starting socketserver')
     host = 'localhost'
     port = int(sys.argv[1])
 
@@ -198,9 +198,9 @@ def socketserver():
 
 if __name__ == '__main__':
 
-    log(os.getcwd())
+    misc.log(os.getcwd())
     if len(sys.argv) > 2:
-        mlsim.SetUseCloud(sys.argv[2])
+        misc.SetUseCloud(sys.argv[2])
 
     # if no argument given # cachefolder = '/Users/cc/ML-SIM/Library/tempresize' # if no argument given
     cachefolder = os.getenv('APPDATA') + '/Mambio-Library/tempresize'
@@ -209,7 +209,7 @@ if __name__ == '__main__':
         cachefolder = sys.argv[3]
 
     # first time launching new version? clean up cache
-    mlsim.SetCachefolder(cachefolder)
+    misc.SetCachefolder(cachefolder)
     os.makedirs(cachefolder, exist_ok=True)
 
     idx = cachefolder.split('/Mambio/')[-1]

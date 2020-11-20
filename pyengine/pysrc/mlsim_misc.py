@@ -25,24 +25,17 @@ import socket
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-useCloud = False
 features = []
 files = []
 model = None
 opt = None
 device = []
-cachefolder = None
+
 
 server_socket = None
 microManagerPluginState = False
 
-def GetCachefolder():
-    global cachefolder
-    return cachefolder
 
-def SetCachefolder(value):
-    global cachefolder
-    cachefolder = value
 
 def handle_microManagerPluginState(desiredState, port):
     global microManagerPluginState
@@ -63,13 +56,7 @@ def set_microManagerPluginState(value):
 
 
 
-def SetUseCloud(val):
-    global useCloud
-    if int(val) == 1:
-        useCloud = True
-    else:
-        useCloud = False
-    log("useCloud is now %d " % useCloud)
+
 
 
 def reconstruct(exportdir,filepaths, conn):

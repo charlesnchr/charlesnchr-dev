@@ -200,6 +200,21 @@ export default class Plugin_SIM extends Component {
                   control={
                     <Checkbox
                       color="primary"
+                      checked={this.state.tubuleSheetStats}
+                      onChange={this.toggle_tubuleSheetStats.bind(this)}
+                      name="wekaColours"
+                    />
+                  }
+                  label={
+                    <Box component="div" fontSize={14}>
+                      Generate graph metrics
+                    </Box>
+                  }
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      color="primary"
                       checked={this.state.saveInOriginalFolders}
                       onChange={this.toggle_saveInOriginalFolders.bind(this)}
                       name="wekaColours"

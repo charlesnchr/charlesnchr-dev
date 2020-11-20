@@ -81,16 +81,22 @@ ipcMain.on("showImage", (event, imgsrc) => {
 
   let imageViewURL = url.format({
     pathname: path.join(__dirname, "../build/index.html"),
-    hash: "test",
+    hash: "imageview",
     protocol: "file",
-    slashes: true,
+    slashes: false,
   });
 
+  if(isDev && !process.env.RunReactCompile) {
+
+  } else {
+    log.info('will go to',imageViewURL);
+  }
   imageWindow.loadURL(
     isDev && !process.env.RunReactCompile
-      ? "http://localhost:3000#/test"
+      ? "http://localhost:3000#/imageview"
       : imageViewURL
   );
+
 
   imageWindow.webContents.on("dom-ready", (event) => {
     imageWindow.webContents.send("filepathArgument", path.normalize(imgsrc).replace(/\\/g, "/"));
@@ -206,6 +212,7 @@ function createWindow() {
       ? "http://localhost:3000"
       : `file://${path.join(__dirname, "../build/index.html")}`
   );
+
   mainWindow.on("closed", () => (mainWindow = null));
   mainWindow.setBackgroundColor("#444444");
 
