@@ -144,8 +144,30 @@ import cv2
 from PIL import Image
 import pickle
 import matplotlib.pyplot as plt
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtCore, QtGui
 
-def receiveImage(conn,npixels,w,h,debugMode=False):
+def decodeImage(imgData,w,h,bytesPerPixel,numComponents):
+
+    if numComponents >= 3: # assuming RGB
+        if bytesPerPixel == 4: # assuming alpha channel is present - numComponents can be 3 simultaneously with bytesPerPixel being 4
+            img = Image.frombuffer("RGBA",(w,h),imgData,"raw","BGRA").convert("RGB")
+            return np.array(img) # will be uint8
+        else:
+            print('image decoder not implemented',w,h,bytesPerPixel,numComponents)
+            return None
+    elif numComponents == 1:
+        data2 = np.frombuffer(imgData,dtype='uint8')
+        arr1 = np.reshape(data2[::2][:h*w*numComponents],(h,w,numComponents))
+        arr2 = np.reshape(data2[1::2][:h*w*numComponents],(h,w,numComponents))
+        comb_arr = 256*arr1 + arr2
+        return comb_arr 
+    else:
+        print('image decoder not implemented',w,h,bytesPerPixel,numComponents)
+        return None
+    return 
+
+def receiveImageData(conn,npixels,w,h):
     
     bytesstr = None
     count = 0
@@ -163,14 +185,7 @@ def receiveImage(conn,npixels,w,h,debugMode=False):
         if len(bytesstr) >= npixels:
             conn.send('c'.encode())
 
-            if debugMode:
-                print('received all bytes')
-                pickle.dump(bytesstr,open('data.pkl','wb'))
-                print('saved as npy')
-                return None
-            else:
-                img = Image.frombuffer("RGBA",(w,h),bytesstr,"raw","BGRA").convert("RGB")
-                return np.array(img)
+            return bytesstr
             ## img = filters.sobel(np.array(img).mean(2))
             
 
@@ -181,7 +196,7 @@ def start_plugin_server(port):
     global microManagerPluginState
 
     showLiveView = True
-    debugMode = True
+    debugMode = False
     host = 'localhost'
     server_socket = socket.socket()  # get instance
     # look closely. The bind() function takes tuple as argument
@@ -215,9 +230,25 @@ def start_plugin_server(port):
             fps = np.ones((10,))
 
             if showLiveView and not debugMode:
-                plt.figure(figsize=(9,6),frameon=False)
-                ax = plt.subplot(111,aspect = 'equal')
-                plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+                # plt.figure(figsize=(9,6),frameon=False)
+                # ax = plt.subplot(111,aspect = 'equal')
+                # plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+                app = QtGui.QApplication([])
+                window = pg.GraphicsView()
+                window.show()
+                window.resize(600,600)
+                window.setWindowTitle('ML-SIM reconstruction')
+                view = pg.ViewBox(enableMouse=True)
+                window.setCentralItem(view)
+                ## lock the aspect ratio
+                view.setAspectLocked(True)
+                view.invertY()
+                ## Create image item
+                imgitem = pg.ImageItem(axisOrder='row-major')
+                view.addItem(imgitem)
+
+                # labelitem = pg.LabelItem()
+                # view.addItem(labelitem)
 
             while microManagerPluginState:
                 data = conn.recv(2048).decode()
@@ -231,26 +262,44 @@ def start_plugin_server(port):
                 # print("Received",data)
                 # print('received npixels',npixels)
                 if npixels > 0:
-                    img = receiveImage(conn,npixels,w,h,debugMode)
+                    imgData = receiveImageData(conn,npixels,w,h)
+
+                    if debugMode:
+                        print('received all bytes')
+                        pickle.dump(imgData,open('data.pkl','wb'))
+                        print('saved as npy')
                     
                     if not debugMode:
-                        stack = np.zeros((9,h,w))
-                        stack[0,:,:] = img[:,:,0]
-                        stack[1,:,:] = img[:,:,1]
-                        stack[2,:,:] = img[:,:,2]
-                        stack[3,:,:] = img[:,:,0]
-                        stack[4,:,:] = img[:,:,1]
-                        stack[5,:,:] = img[:,:,2]
-                        stack[6,:,:] = img[:,:,0]
-                        stack[7,:,:] = img[:,:,1]
-                        stack[8,:,:] = img[:,:,2]
-                        sr = reconstruct_image(stack)
-                        print('here with',sr.shape)
+                        img = decodeImage(imgData, w,h,bytesPerPixel,numComponents)
+
+                        if img is None:
+                            print('Quitting since no valid image provided')
+                            break
+                        
+                        if img.shape[2] == 3: # RGB assumed
+                            stackbuffer.extend([img[:,:,0],img[:,:,1],img[:,:,2]])
+                        elif img.shape[2] == 1: # assuming scientific camera
+                            stackbuffer.append(img[:,:,0])
+                        else:
+                            print('no implementation for image dimensions')
+                            break
+
+                        if len(stackbuffer) == 9:
+                            stack = np.array(stackbuffer)
+                            stackbuffer = []
+                            sr = reconstruct_image(stack)
+                            print('obtained reconstructed image',sr.shape)
+                        else:
+                            print('need more image data, frames in buffer:',len(stackbuffer))
+                            continue
 
                     if showLiveView and not debugMode:
-                        plt.cla()
-                        plt.gca().imshow(sr,cmap='magma')
-                        plt.pause(0.01)
+                        # plt.cla()
+                        # plt.gca().imshow(sr,cmap='magma')
+                        # plt.pause(0.01)
+                        imgitem.setImage(sr)
+                        view.autoRange(padding=0)
+                        pg.QtGui.QApplication.processEvents()
                     
                     # print('received img',img.size)
                     fps[count % 10] = 1 / (time.perf_counter() - t0)
@@ -267,4 +316,10 @@ def start_plugin_server(port):
             log(errmsg)
         
         microManagerPluginState = False
+        try:
+            pg.close()
+            pg.win.close()
+        except Exception as e:
+            errmsg = traceback.format_exc()
+            log("Pyqtgraph window not able to close, perhaps not started. Error message is: " + errmsg)
             # send_log(errmsg)

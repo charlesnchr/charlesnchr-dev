@@ -67,7 +67,7 @@ def GetOptions_allRnd():
     opt.undomulti = False
 
     opt.imageSize = 512
-    opt.weights = "../models/DIV2K_randomised_3x3.pth"
+    opt.weights = "../models/DIV2K_randomised_3x3_20200317.pth"
 
     opt.task = 'simin_gtout'
     opt.scale = 1
@@ -258,13 +258,6 @@ def EvaluateModelRealtime(net, opt, stack):
 
     # inputimg = torch.tensor(stack)
 
-    if opt.cmap == 'viridis':
-        cmap = cv2.COLORMAP_VIRIDIS
-    elif opt.cmap == 'magma':
-        cmap = cv2.COLORMAP_MAGMA
-    else:
-        cmap = cv2.COLORMAP_MAGMA
-
     inputimg = inputimg.unsqueeze(0)
 
     with torch.no_grad():
@@ -288,8 +281,6 @@ def EvaluateModelRealtime(net, opt, stack):
 
     return sr_img
 
-    # should ideally be done by drawing on client side, in javascript
-    # save_image(sr_img, '%s_sr.png' % outfile, cmap)
 
 
 def EvaluateModelRealtimeAsync(asyncmodel, opt, stack):
