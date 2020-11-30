@@ -99,9 +99,10 @@ class Img extends Component {
         // remove completed job
         let idx = sess.thumbJobs.indexOf(this.state.filepath);
         if (idx > -1) sess.thumbJobs.splice(idx, 1);
-  
+        
         // render if job was a success
         if (thumbpath !== "0") {
+          thumbpath = 'file://' + thumbpath;
           sess.thumbdict[this.state.filepath] = { src: thumbpath, dim: dim };
           this.setState({ dim: dim, imgsrc: thumbpath });
         }

@@ -11,6 +11,7 @@ import zipfile
 import mlsim_misc as mlsim
 import misc
 import ernet
+import appdirs
 
 
 
@@ -203,7 +204,7 @@ if __name__ == '__main__':
         misc.SetUseCloud(sys.argv[2])
 
     # if no argument given # cachefolder = '/Users/cc/ML-SIM/Library/tempresize' # if no argument given
-    cachefolder = os.getenv('APPDATA') + '/Mambio-Library/tempresize'
+    cachefolder = '%s/Mambio-Library/tempresize' % appdirs.user_cache_dir('Mambio','Mambio')
 
     if len(sys.argv) > 3:
         cachefolder = sys.argv[3]
