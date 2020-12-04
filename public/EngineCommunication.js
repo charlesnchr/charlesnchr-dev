@@ -23,7 +23,8 @@ const sendToPython = (event, json) => {
 
   var client = new net.Socket();
   client.connect(5002, "127.0.0.1", function() {
-    if (filepaths in json) {
+    log.info("here",json);
+    if ("filepaths" in json) {
       // start chunked sending of filepaths
       filepaths = json["filepaths"];
       var msg = json["cmd"] + "\n" + json["arg"];

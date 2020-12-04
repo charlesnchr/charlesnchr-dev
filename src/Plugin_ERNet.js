@@ -63,6 +63,7 @@ export default class Plugin_SIM extends Component {
       panelTitle: "ERNet",
       wekaColours: true,
       tubuleSheetStats: true,
+      graphMetrics: true,
       saveInOriginalFolders: true,
     };
   }
@@ -73,6 +74,10 @@ export default class Plugin_SIM extends Component {
 
   toggle_tubuleSheetStats() {
     this.setState({ tubuleSheetStats: !this.state.tubuleSheetStats });
+  }
+
+  toggle_graphMetrics() {
+    this.setState({ graphMetrics: !this.state.graphMetrics });
   }
 
   toggle_saveInOriginalFolders() {
@@ -96,6 +101,8 @@ export default class Plugin_SIM extends Component {
         this.state.wekaColours +
         "\n" +
         this.state.tubuleSheetStats +
+        "\n" +
+        this.state.graphMetrics +
         "\n" +
         this.state.saveInOriginalFolders,
     });
@@ -200,9 +207,9 @@ export default class Plugin_SIM extends Component {
                   control={
                     <Checkbox
                       color="primary"
-                      checked={this.state.tubuleSheetStats}
-                      onChange={this.toggle_tubuleSheetStats.bind(this)}
-                      name="wekaColours"
+                      checked={this.state.graphMetrics}
+                      onChange={this.toggle_graphMetrics.bind(this)}
+                      name="graphMetrics"
                     />
                   }
                   label={

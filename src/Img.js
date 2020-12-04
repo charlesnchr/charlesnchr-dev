@@ -83,7 +83,7 @@ class Img extends Component {
         // showing results
         let dim = "2D image";
         let imgsrc = this.state.filepath;
-        this.setState({ dim: dim, imgsrc: imgsrc });
+        this.setState({ dim: dim, imgsrc: 'file://' + imgsrc });
       } else {
         let thumb = sess.thumbdict[this.state.filepath];
   

@@ -265,6 +265,8 @@ def processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr):
             imageSize += 250
         print('Set imageSize to',imageSize)
 
+    device = torch.device('cuda' if torch.cuda.is_available() and not opt.cpu else 'cpu')
+
     # img_norm = (img - np.min(img)) / (np.max(img) - np.min(img)) 
     images = []
 
@@ -286,10 +288,8 @@ def processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr):
         sub_tensor = sub_tensor.unsqueeze(0)
 
         with torch.no_grad():
-            if opt.cpu:
-                sr = net(sub_tensor)
-            else:
-                sr = net(sub_tensor.cuda())
+            sr = net(sub_tensor.to(device))
+            
             sr = sr.cpu()
             # sr = torch.clamp(sr,min=0,max=1)
 
@@ -362,10 +362,10 @@ def EvaluateModel(opt,conn):
         opt.csvfid.write('Filename,Tubule fraction,Sheet fraction,Tubule/sheet ratio\n')
 
     net = RCAN(opt)
-    if not opt.cpu:
-        net.cuda()
+    device = torch.device('cuda' if torch.cuda.is_available() and not opt.cpu else 'cpu')
+    net.to(device)
 
-    checkpoint = torch.load(opt.weights)
+    checkpoint = torch.load(opt.weights, map_location=device)
     print('loading checkpoint',opt.weights)
     net.load_state_dict(checkpoint['state_dict'])
 
@@ -445,7 +445,145 @@ def EvaluateModel(opt,conn):
     print(outpaths)
     return outpaths
 
-def segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,save_in_original_folders,save_input=False):
+
+import cv2
+import sknw
+from skimage.morphology import skeletonize
+
+def remove_isolated_pixels(image):
+    connectivity = 8
+
+    output = cv2.connectedComponentsWithStats(image, connectivity, cv2.CV_32S)
+
+    num_stats = output[0]
+    labels = output[1]
+    stats = output[2]
+
+    new_image = image.copy()
+
+    for label in range(num_stats):
+        if stats[label,cv2.CC_STAT_AREA] < 50:
+            new_image[labels == label] = 0
+
+    return new_image
+
+
+def binariseImage(I):
+    ind = I[:,:,0] > 250
+    Ibin = np.zeros((I.shape[0],I.shape[1])).astype('uint8')
+    Ibin[ind] = 255
+    Ibin = remove_isolated_pixels(Ibin)
+    return Ibin
+
+
+def getGraph(img):
+    img = binariseImage(img) / 255
+    ske = skeletonize(img).astype(np.uint16)
+    # ske = img.astype('uint16')
+
+    # build graph from skeleton
+    graph = sknw.build_sknw(ske)
+
+    # draw edges by pts
+    for (s,e) in graph.edges():
+        ps = graph[s][e]['pts']
+        
+    # draw node by o
+    nodes = graph.nodes()
+    ps = np.array([nodes[i]['o'] for i in nodes])
+
+    # print('EDGES',graph.edges())
+    # print('NODES',graph.nodes())
+    
+    # open('%s/%d_edges.dat' % (folder,iidx),'w').write(str(graph.edges()))
+    # open('%s/%d_nodes.dat' % (folder,iidx),'w').write(str(graph.nodes()))
+
+    edges = np.array(graph.edges())
+
+    return edges, nodes
+
+import networkx as nx
+import json
+import matplotlib.pyplot as plt
+import collections
+
+plt.switch_backend('agg')
+
+
+#build teh networkx graph from node and egdes lists 
+def build_graph(nodes,edges):
+    G=nx.Graph()
+    G.add_nodes_from(nodes)
+    for edge in edges:
+        G.add_edge(edge[0],edge[1])
+    return G
+
+# perform some analysis 
+def simple_analysis(G):
+    no_nodes=G.number_of_nodes()
+    no_edges=G.number_of_edges()
+    assortativity = nx.degree_assortativity_coefficient(G)
+    clustering = nx.average_clustering(G)
+    compo = nx.number_connected_components(G)
+    Gcc = sorted(nx.connected_components(G), key=len, reverse=True)
+    G0 = G.subgraph(Gcc[0])
+    size_G0_edges = G0.number_of_edges()
+    size_G0_nodes = G0.number_of_nodes()
+    ratio_nodes=size_G0_nodes/no_nodes
+    ratio_edges =size_G0_edges/no_edges
+    return no_nodes,no_edges,assortativity, clustering, compo, ratio_nodes, ratio_edges
+
+# here we generate a histogram of degrees with a specified colour
+def degree_histogram(savepath,G,colour='blue'):
+    plt.figure()
+
+    degree_sequence = sorted([d for n, d in G.degree()], reverse=True)  # degree sequence
+    degreeCount = collections.Counter(degree_sequence)
+    deg, cnt = zip(*degreeCount.items())
+    fig1, ax = plt.subplots()
+    plt.bar(deg, cnt, width=0.80, color=colour)
+    plt.ylabel("Count")
+    plt.xlabel("%Degree")
+    ax.set_xticks([d + 0.4 for d in deg])
+    ax.set_xticklabels(deg)
+    plt.savefig(savepath)
+
+    plt.close()
+
+# here we generate an image where nodes are coloured according to their degrees 
+def graph_image(savepath,G):
+    plt.figure()
+    node_color = [float(G.degree(v)) for v in G]
+    nx.draw_spring(G,node_size=10,node_color=node_color)
+    plt.savefig(savepath)
+
+    plt.close()
+    
+
+
+def performGraphProcessing(opt, conn):
+
+    savepath_hist = opt.root[0].replace('.png','_hist.png')
+    savepath_graph = opt.root[0].replace('.png','_graph.png')
+
+    img = io.imread(opt.root[0])
+    edges, nodes = getGraph(img)
+    G=build_graph(nodes,edges)
+    simple_analysis(G)
+    degree_histogram(savepath_hist,G,'goldenrod')
+    graph_image(savepath_graph,G)
+
+    conn.send(('2' + '\n'.join([savepath_graph,savepath_hist])).encode()) # partial render
+    ready = conn.recv(20).decode()
+
+    plt.close()
+
+    return [savepath_graph,savepath_hist]
+
+
+
+
+def segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,graph_metrics,save_in_original_folders,save_input=False):
     import sys
     opt = Namespace()
     opt.root = filepaths
@@ -468,7 +606,7 @@ def segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,save_in_ori
     opt.nch_in = 1
     opt.nch_out = 3
     opt.cpu = False
-    opt.weights = 'G:/My Drive/01models/segmentation/meng_3colours_4/final.pth'
+    opt.weights = '../models/meng_3colours_4.pth'
     opt.scale = 1
     
     
@@ -477,7 +615,10 @@ def segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,save_in_ori
 
     print(opt)
     
-    return EvaluateModel(opt,conn)
+    if graph_metrics:
+        return performGraphProcessing(opt, conn)
+    else:
+        return EvaluateModel(opt,conn)
 
 
 

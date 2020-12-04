@@ -5,7 +5,7 @@
     "version": "2.1.2",
     "author": "Charles N. Christensen",
     "scripts": {
-        "pyinstaller": "pipenv run pyinstaller pysrc/engine.py --add-data ./pysrc/extra_dll/vcomp140.dll;./ --hidden-import sklearn.neighbors.typedefs --hidden-import sklearn --hidden-import sklearn.utils --hidden-import sklearn.utils._cython_blas --distpath . -y --noconfirm",
+        "pyinstaller": "pipenv run pyinstaller pysrc/engine.py --distpath . -y --noconfirm",
         "pyzip": "node util/pyzip.js",
         "pyfinalize": "node util/pyfinalize.js",
         "pypackage": "yarn pyzip && yarn pyfinalize",

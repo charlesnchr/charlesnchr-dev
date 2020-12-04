@@ -89,7 +89,8 @@ def run_command(conn, address):
             exportdir = args[0]
             weka_colours = args[1] == 'true'
             stats_tubule_sheet = args[2] == 'true'
-            save_in_original_folders = args[3] == 'true'
+            graph_metrics = args[3] == 'true'
+            save_in_original_folders = args[4] == 'true'
             
             filepaths = []
             while True:
@@ -110,7 +111,7 @@ def run_command(conn, address):
                     print('Can now close thread')
             else:
                 try:
-                    outpaths = ernet.segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,save_in_original_folders)
+                    outpaths = ernet.segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,graph_metrics,save_in_original_folders)
                     misc.log('sending back %s' % outpaths)
                     conn.send(('2' + '\n'.join(outpaths)).encode())
                 except:
@@ -197,8 +198,11 @@ def socketserver():
         th.start()
 
 
+import matplotlib.pyplot as plt
+
 if __name__ == '__main__':
 
+    plt.figure()
     misc.log(os.getcwd())
     if len(sys.argv) > 2:
         misc.SetUseCloud(sys.argv[2])

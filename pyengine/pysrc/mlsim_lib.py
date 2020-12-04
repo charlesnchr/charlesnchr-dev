@@ -100,7 +100,8 @@ def LoadModel(opt):
 
     net = GetModel(opt)
     print('loading checkpoint', opt.weights)
-    checkpoint = torch.load(opt.weights)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    checkpoint = torch.load(opt.weights, map_location=device)
 
     if type(checkpoint) is dict:
         state_dict = checkpoint['state_dict']
@@ -201,6 +202,8 @@ def EvaluateModel(net, opt, stack, outfile=None):
     else:
         cmap = cv2.COLORMAP_MAGMA
 
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 
     if outfile is not None:
         # skimage.io.imsave('%s_wf.png' % outfile,(255*widefield.numpy()).astype('uint8'))
@@ -218,7 +221,7 @@ def EvaluateModel(net, opt, stack, outfile=None):
         if opt.cpu:
             sr = net(inputimg)
         else:
-            sr = net(inputimg.cuda())
+            sr = net(inputimg.to(device))
         sr = sr.cpu()
         sr = torch.clamp(sr, min=0, max=1)
         print('min max', inputimg.min(), inputimg.max())
@@ -264,7 +267,7 @@ def EvaluateModelRealtime(net, opt, stack):
         if opt.cpu:
             sr = net(inputimg)
         else:
-            sr = net(inputimg.cuda())
+            sr = net(inputimg.to(device))
             # sr = inputimg[:,0,:,:]#.cuda()
         sr = sr.cpu()
         sr = torch.clamp(sr, min=0, max=1)
@@ -285,6 +288,8 @@ def EvaluateModelRealtime(net, opt, stack):
 
 def EvaluateModelRealtimeAsync(asyncmodel, opt, stack):
 
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     time.sleep(np.random.randint(1,10)/20) # attempt to space out delivery of frames
     
     print(stack.shape)
@@ -302,7 +307,7 @@ def EvaluateModelRealtimeAsync(asyncmodel, opt, stack):
         if opt.cpu:
             sr = asyncmodel.model(inputimg)
         else:
-            sr = asyncmodel.model(inputimg.cuda())
+            sr = asyncmodel.model(inputimg.to(device))
             # sr = inputimg[:,0,:,:]#.cuda()
         sr = sr.cpu()
         sr = torch.clamp(sr, min=0, max=1)

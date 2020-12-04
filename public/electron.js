@@ -99,7 +99,9 @@ ipcMain.on("showImage", (event, imgsrc) => {
 
 
   imageWindow.webContents.on("dom-ready", (event) => {
-    imageWindow.webContents.send("filepathArgument", path.normalize(imgsrc).replace(/\\/g, "/"));
+    log.info('before noramlise',imgsrc);
+    log.info('after normalize',path.normalize(imgsrc));
+    imageWindow.webContents.send("filepathArgument", imgsrc.replace(/\\/g, "/"));
   });
 });
 

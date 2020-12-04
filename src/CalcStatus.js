@@ -104,7 +104,7 @@ class CalcStatus extends Component {
   
     render() {
       var progressBar = this.state.progress ? (
-        <LinearProgress variant={"determinate"} value={this.state.progress} />
+        <LinearProgress variant={"indeterminate"} value={this.state.progress} />
       ) : (
         ""
       );

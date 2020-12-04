@@ -8,9 +8,6 @@ import requests
 
 import random
 import numpy as np
-import sklearn
-import sklearn.utils
-from sklearn.neighbors import NearestNeighbors
 
 import traceback
 
@@ -144,8 +141,8 @@ import cv2
 from PIL import Image
 import pickle
 import matplotlib.pyplot as plt
-import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtGui
+# import pyqtgraph as pg
+# from pyqtgraph.Qt import QtCore, QtGui
 
 def decodeImage(imgData,w,h,bytesPerPixel,numComponents):
 
@@ -230,22 +227,23 @@ def start_plugin_server(port):
             fps = np.ones((10,))
 
             if showLiveView and not debugMode:
-                # plt.figure(figsize=(9,6),frameon=False)
-                # ax = plt.subplot(111,aspect = 'equal')
-                # plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-                app = QtGui.QApplication([])
-                window = pg.GraphicsView()
-                window.show()
-                window.resize(600,600)
-                window.setWindowTitle('ML-SIM reconstruction')
-                view = pg.ViewBox(enableMouse=True)
-                window.setCentralItem(view)
-                ## lock the aspect ratio
-                view.setAspectLocked(True)
-                view.invertY()
-                ## Create image item
-                imgitem = pg.ImageItem(axisOrder='row-major')
-                view.addItem(imgitem)
+                plt.figure(figsize=(9,6),frameon=False)
+                ax = plt.subplot(111,aspect = 'equal')
+                plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+
+                # app = QtGui.QApplication([])
+                # window = pg.GraphicsView()
+                # window.show()
+                # window.resize(600,600)
+                # window.setWindowTitle('ML-SIM reconstruction')
+                # view = pg.ViewBox(enableMouse=True)
+                # window.setCentralItem(view)
+                # ## lock the aspect ratio
+                # view.setAspectLocked(True)
+                # view.invertY()
+                # ## Create image item
+                # imgitem = pg.ImageItem(axisOrder='row-major')
+                # view.addItem(imgitem)
 
                 # labelitem = pg.LabelItem()
                 # view.addItem(labelitem)
@@ -294,12 +292,13 @@ def start_plugin_server(port):
                             continue
 
                     if showLiveView and not debugMode:
-                        # plt.cla()
-                        # plt.gca().imshow(sr,cmap='magma')
-                        # plt.pause(0.01)
-                        imgitem.setImage(sr)
-                        view.autoRange(padding=0)
-                        pg.QtGui.QApplication.processEvents()
+                        plt.cla()
+                        plt.gca().imshow(sr,cmap='magma')
+                        plt.pause(0.01)
+                        
+                        # imgitem.setImage(sr)
+                        # view.autoRange(padding=0)
+                        # pg.QtGui.QApplication.processEvents()
                     
                     # print('received img',img.size)
                     fps[count % 10] = 1 / (time.perf_counter() - t0)
