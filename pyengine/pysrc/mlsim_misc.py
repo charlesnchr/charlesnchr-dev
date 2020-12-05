@@ -96,7 +96,7 @@ import asyncio
 import copy
 count = -1
 asyncmodels = []
-num_models = 5
+num_models = 2
 import threading
 
 class AsyncModel:
@@ -174,15 +174,17 @@ def receiveImageData(conn,npixels,w,h):
         data = conn.recv(2000)
         if bytesstr is None:
             bytesstr = data
+        elif len(data) == 1:
+            print("received a 1 character long message, assuming quit")
+            return bytesstr
         else:
             bytesstr += data
 
         count += 1
         # print('%d batch, added now %d' % (count,len(bytesstr)))
-        if len(bytesstr) >= npixels:
-            conn.send('c'.encode())
-
-            return bytesstr
+        # if len(bytesstr) >= npixels:
+        #     conn.send('c'.encode())
+        #     return bytesstr
             ## img = filters.sobel(np.array(img).mean(2))
             
 
@@ -249,7 +251,10 @@ def start_plugin_server(port):
                 # view.addItem(labelitem)
 
             while microManagerPluginState:
-                data = conn.recv(2048).decode()
+                # data = conn.recv(2048).decode()
+                data = conn.recv(100)
+                print('undecoded',data)
+                data = data.decode()
                 vals = data.split(",")
                 npixels = int(vals[0])
                 w = int(vals[1])
@@ -315,10 +320,12 @@ def start_plugin_server(port):
             log(errmsg)
         
         microManagerPluginState = False
-        try:
-            pg.close()
-            pg.win.close()
-        except Exception as e:
-            errmsg = traceback.format_exc()
-            log("Pyqtgraph window not able to close, perhaps not started. Error message is: " + errmsg)
-            # send_log(errmsg)
+        server_socket.close()
+        
+        # try:
+        #     pg.close()
+        #     pg.win.close()
+        # except Exception as e:
+        #     errmsg = traceback.format_exc()
+        #     log("Pyqtgraph window not able to close, perhaps not started. Error message is: " + errmsg)
+        #     # send_log(errmsg)

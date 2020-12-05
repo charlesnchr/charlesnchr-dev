@@ -1,24 +1,19 @@
 [[source]]
-name = "pypi"
 url = "https://pypi.org/simple"
 verify_ssl = true
-
-[dev-packages]
+name = "pypi"
 
 [packages]
-matplotlib = "*"
-opencv-python = "*"
-scikit-image = "*"
-scipy = "*"
 numpy = "*"
-pillow = "*"
-pyinstaller = "==3.6"
-requests = "*"
-pyqtgraph = "*"
-pyqt5 = "*"
-torchvision = "*"
-appdirs = "*"
+matplotlib = "*"
 sknw = "*"
+scikit-image = "*"
+opencv-python = "*"
+pillow = "*"
+appdirs = "*"
+requests = "*"
+
+[dev-packages]
 
 [requires]
 python_version = "3.6"
