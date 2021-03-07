@@ -59,7 +59,7 @@
   "scripts": {
     "download-models": "node util/download_models.js",
     "update-server": "cross-env MINIO_ACCESS_KEY=admin MINIO_SECRET_KEY=password util/minio.exe server .",
-    "react-start": "react-scripts start",
+    "react-start": "cross-env PORT=4001 react-scripts start",
     "react-build": "react-scripts build",
     "react-test": "react-scripts test --env=jsdom",
     "react-eject": "react-scripts eject",
@@ -79,7 +79,7 @@
     "patch": "npm --no-git-tag-version version patch",
     "push-update": "aws s3 cp ./dist/latest.yml s3://mlsim/dist/",
     "electron": "cross-env RunReactCompile=1 electron .",
-    "electron-localhost": "wait-on http://localhost:3000 && electron .",
+    "electron-localhost": "wait-on http://localhost:4001 && electron .",
     "start": "concurrently \"cross-env BROWSER=none yarn react-start\" \"yarn electron-localhost\"",
     "start-pdist": "concurrently \"cross-env BROWSER=none yarn react-start\" \"cross-env use_pdist=1 yarn electron-localhost\"",
     "start-pdist-server": "cross-env use_pdist=1 pdist_server='http://127.0.0.1:9000/pyengine' yarn start"

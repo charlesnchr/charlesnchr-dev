@@ -202,7 +202,6 @@ import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
 
-    plt.figure()
     misc.log(os.getcwd())
     if len(sys.argv) > 2:
         misc.SetUseCloud(sys.argv[2])

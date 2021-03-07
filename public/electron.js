@@ -93,7 +93,7 @@ ipcMain.on("showImage", (event, imgsrc) => {
   }
   imageWindow.loadURL(
     isDev && !process.env.RunReactCompile
-      ? "http://localhost:3000#/imageview"
+      ? "http://localhost:4001#/imageview"
       : imageViewURL
   );
 
@@ -211,7 +211,7 @@ function createWindow() {
 
   mainWindow.loadURL(
     isDev && !process.env.RunReactCompile
-      ? "http://localhost:3000"
+      ? "http://localhost:4001"
       : `file://${path.join(__dirname, "../build/index.html")}`
   );
 

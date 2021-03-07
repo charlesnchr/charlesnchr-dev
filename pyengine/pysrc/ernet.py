@@ -562,6 +562,8 @@ def graph_image(savepath,G):
 
 
 def performGraphProcessing(opt, conn):
+    conn.send(("siGraph metrics,%d,%d" % (0, len(opt.root))).encode())
+    ready = conn.recv(20).decode()
 
     savepath_hist = opt.root[0].replace('.png','_hist.png')
     savepath_graph = opt.root[0].replace('.png','_graph.png')
@@ -576,10 +578,39 @@ def performGraphProcessing(opt, conn):
     conn.send(('2' + '\n'.join([savepath_graph,savepath_hist])).encode()) # partial render
     ready = conn.recv(20).decode()
 
+    conn.send("sd".encode())  # status done
+    ready = conn.recv(20).decode()
+
     plt.close()
 
     return [savepath_graph,savepath_hist]
 
+
+
+
+def performGraphProcessing(opt, conn):
+    conn.send(("siGraph metrics,%d,%d" % (0, len(opt.root))).encode())
+    ready = conn.recv(20).decode()
+
+    savepath_hist = opt.root[0].replace('.png','_hist.png')
+    savepath_graph = opt.root[0].replace('.png','_graph.png')
+
+    img = io.imread(opt.root[0])
+    edges, nodes = getGraph(img)
+    G=build_graph(nodes,edges)
+    simple_analysis(G)
+    degree_histogram(savepath_hist,G,'goldenrod')
+    graph_image(savepath_graph,G)
+
+    conn.send(('2' + '\n'.join([savepath_graph,savepath_hist])).encode()) # partial render
+    ready = conn.recv(20).decode()
+
+    conn.send("sd".encode())  # status done
+    ready = conn.recv(20).decode()
+
+    plt.close()
+
+    return [savepath_graph,savepath_hist]
 
 
 
@@ -616,7 +647,9 @@ def segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,graph_metri
     print(opt)
     
     if graph_metrics:
-        return performGraphProcessing(opt, conn)
+        paths = performGraphProcessing(opt, conn)
+        paths.extend(EvaluateModel(opt,conn))
+        return pths
     else:
         return EvaluateModel(opt,conn)
 

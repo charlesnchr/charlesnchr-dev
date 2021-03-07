@@ -27,9 +27,11 @@ class CalcStatus extends Component {
   
         if (cmd === "i") {
           // indexing
+
           msg = msg.split(",");
-          var n1 = Number.parseInt(msg[0]);
-          var n2 = Number.parseInt(msg[1]);
+          var taskName = msg[0];
+          var n1 = Number.parseInt(msg[1]);
+          var n2 = Number.parseInt(msg[2]);
           p =
             Number.parseInt(
               (100.0 * Number.parseFloat(n1)) / Number.parseFloat(n2)
@@ -37,7 +39,7 @@ class CalcStatus extends Component {
           s = (
             <Grid container>
               <Grid style={{ textAlign: "left" }} item xs>
-                {"Reconstructing"}
+                {taskName}
               </Grid>
               <Grid item xs>
                 {n1 + "/" + n2}
