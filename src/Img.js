@@ -108,7 +108,8 @@ class Img extends Component {
         }
       });
     }
-  
+
+
     render() {
       let fp = this.state.filepath;
       let style = {

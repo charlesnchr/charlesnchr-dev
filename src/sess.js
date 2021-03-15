@@ -20,6 +20,8 @@ module.exports = {
     removeSelection : null,
     isCalcFeaturesFinished : null,
     toggleSelectedFilepath : null,
+    resort : false,
+    sortBy : "filename",
 
     displayedFolders : null,
     dirsizes : null,

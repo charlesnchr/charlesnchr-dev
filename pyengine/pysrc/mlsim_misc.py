@@ -72,7 +72,7 @@ def reconstruct(exportdir,filepaths, conn):
     for idx, filepath in enumerate(filepaths):
         log('ITRERASTION %d %s' % (idx,filepath))
         # status reconstruction
-        conn.send(("si%d,%d" % (idx, len(filepaths))).encode())
+        conn.send(("siReconstructing%d,%d" % (idx, len(filepaths))).encode())
         ready = conn.recv(20).decode()
 
         outfile = '%s/%s' % (exportdir,
