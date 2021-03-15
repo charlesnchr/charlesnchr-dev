@@ -250,7 +250,7 @@ def AssembleStacks(basefolder):
         stackname = os.path.basename(basefolder)
         stackfilename = '%s/%s_%s.tif' % (basefolder,stackname,subfolder)
         io.imsave(stackfilename,I,compress=6)
-        print('saved stack: %s.tif' % stackfilename)
+        print('saved stack: %s' % stackfilename)
 
 
 
