@@ -316,8 +316,9 @@ def start_plugin_server(port):
         
         microManagerPluginState = False
         try:
-            pg.close()
-            pg.win.close()
+            # pg.close()
+            # pg.win.close()
+            pass
         except Exception as e:
             errmsg = traceback.format_exc()
             log("Pyqtgraph window not able to close, perhaps not started. Error message is: " + errmsg)
