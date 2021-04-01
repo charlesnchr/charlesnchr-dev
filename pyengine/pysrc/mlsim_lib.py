@@ -285,17 +285,32 @@ def EvaluateModelRealtime(net, opt, stack):
     return sr_img
 
 
+from skimage import exposure
 
 def EvaluateModelRealtimeAsync(asyncmodel, opt, stack):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    time.sleep(np.random.randint(1,10)/20) # attempt to space out delivery of frames
+    time.sleep(np.random.randint(1,10)/40) # attempt to space out delivery of frames
     
     print(stack.shape)
     # inputimg, widefield = prepimg(stack, opt)
     inputimg = stack[:, :512, :512]
-    inputimg = inputimg.astype('float') / np.max(inputimg)  # used to be /255
+
+    # inputimg = inputimg.astype('float') / 90000  # used to be /255
+    inputimg = inputimg.astype('float')
+    # inputimg = (inputimg - np.min(inputimg)) / (np.max(inputimg) - np.min(inputimg))
+    
+    # for i in range(len(inputimg)):
+    #     inputimg[i] =  (inputimg[i] - np.min(inputimg[i])) / (np.max(inputimg[i]) - np.min(inputimg[i]))
+
+    for i in range(len(inputimg)):
+        inputimg[i] = inputimg[i] / (1.8*np.max(inputimg[i]))
+
+    # for i in range(len(inputimg)):
+    #     inputimg[i] = exposure.equalize_adapthist(
+    #         inputimg[i], clip_limit=0.001)
+
     inputimg = torch.tensor(inputimg).float()
 
     # inputimg = torch.tensor(stack)

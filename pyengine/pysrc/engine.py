@@ -202,7 +202,7 @@ import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
 
-    plt.figure()
+    # plt.figure()
     misc.log(os.getcwd())
     if len(sys.argv) > 2:
         misc.SetUseCloud(sys.argv[2])
@@ -233,4 +233,7 @@ if __name__ == '__main__':
         if os.path.isdir(oldfolder):
             shutil.rmtree(oldfolder, ignore_errors=True)
 
+    
+    # for developing
+    mlsim.handle_microManagerPluginState('on', 5003)
     socketserver()

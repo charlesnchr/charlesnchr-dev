@@ -96,7 +96,7 @@ import asyncio
 import copy
 count = -1
 asyncmodels = []
-num_models = 2
+num_models = 6
 import threading
 
 class AsyncModel:
@@ -141,8 +141,8 @@ import cv2
 from PIL import Image
 import pickle
 import matplotlib.pyplot as plt
-# import pyqtgraph as pg
-# from pyqtgraph.Qt import QtCore, QtGui
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtCore, QtGui
 
 def decodeImage(imgData,w,h,bytesPerPixel,numComponents):
 
@@ -163,6 +163,8 @@ def decodeImage(imgData,w,h,bytesPerPixel,numComponents):
         print('image decoder not implemented',w,h,bytesPerPixel,numComponents)
         return None
     return 
+
+
 
 def receiveImageData(conn,npixels,w,h):
     
@@ -195,7 +197,8 @@ def start_plugin_server(port):
     global microManagerPluginState
 
     showLiveView = True
-    debugMode = False
+    debugMode = True
+    rollingSIM = True
     host = 'localhost'
     server_socket = socket.socket()  # get instance
     # look closely. The bind() function takes tuple as argument
@@ -225,35 +228,37 @@ def start_plugin_server(port):
 
             # receive data stream. it won't accept data packet greater than 2048 bytes  
             count = 0
+            simcount = 0
             t0 = time.perf_counter()
+            tstart = t0
             fps = np.ones((10,))
 
             if showLiveView and not debugMode:
-                plt.figure(figsize=(9,6),frameon=False)
-                ax = plt.subplot(111,aspect = 'equal')
-                plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+                # plt.figure(figsize=(9,6),frameon=False)
+                # ax = plt.subplot(111,aspect = 'equal')
+                # plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
 
-                # app = QtGui.QApplication([])
-                # window = pg.GraphicsView()
-                # window.show()
-                # window.resize(600,600)
-                # window.setWindowTitle('ML-SIM reconstruction')
-                # view = pg.ViewBox(enableMouse=True)
-                # window.setCentralItem(view)
-                # ## lock the aspect ratio
-                # view.setAspectLocked(True)
-                # view.invertY()
-                # ## Create image item
-                # imgitem = pg.ImageItem(axisOrder='row-major')
-                # view.addItem(imgitem)
+                app = QtGui.QApplication([])
+                window = pg.GraphicsView()
+                window.show()
+                window.resize(600,600)
+                window.setWindowTitle('ML-SIM reconstruction')
+                view = pg.ViewBox(enableMouse=True)
+                window.setCentralItem(view)
+                ## lock the aspect ratio
+                view.setAspectLocked(True)
+                view.invertY()
+                ## Create image item
+                imgitem = pg.ImageItem(axisOrder='row-major')
+                view.addItem(imgitem)
 
-                # labelitem = pg.LabelItem()
-                # view.addItem(labelitem)
+                labelitem = pg.LabelItem()
+                view.addItem(labelitem)
 
             while microManagerPluginState:
                 # data = conn.recv(2048).decode()
                 data = conn.recv(100)
-                print('undecoded',data)
+                # print('undecoded',data)
                 data = data.decode()
                 vals = data.split(",")
                 npixels = int(vals[0])
@@ -267,9 +272,14 @@ def start_plugin_server(port):
                 if npixels > 0:
                     imgData = receiveImageData(conn,npixels,w,h)
 
+                    # fps[count % 10] = 1 / (time.perf_counter() - t0)
+                    count += 1
+                    # t0 = time.perf_counter()
+                    print('img #%d (%dx%d) (%d,%d) - fps: %0.3f' % (count,w,h,bytesPerPixel,numComponents,fps.mean()))
+
                     if debugMode:
                         print('received all bytes')
-                        pickle.dump(imgData,open('data.pkl','wb'))
+                        pickle.dump(imgData,open('data%d.pkl' % count,'wb'))
                         print('saved as npy')
                     
                     if not debugMode:
@@ -289,27 +299,31 @@ def start_plugin_server(port):
 
                         if len(stackbuffer) == 9:
                             stack = np.array(stackbuffer)
-                            stackbuffer = []
+                            if rollingSIM:
+                                stackbuffer = stackbuffer[-6:]
+                            else:
+                                stackbuffer = []
                             sr = reconstruct_image(stack)
+                            
+                            fps[simcount % 10] = 1 / (time.perf_counter() - t0)
+                            simcount += 1
+                            t0 = time.perf_counter()
                             print('obtained reconstructed image',sr.shape)
                         else:
                             print('need more image data, frames in buffer:',len(stackbuffer))
                             continue
 
                     if showLiveView and not debugMode:
-                        plt.cla()
-                        plt.gca().imshow(sr,cmap='magma')
-                        plt.pause(0.01)
+                        # plt.cla()
+                        # plt.gca().imshow(sr,cmap='magma')
+                        # plt.pause(0.01)
                         
-                        # imgitem.setImage(sr)
-                        # view.autoRange(padding=0)
-                        # pg.QtGui.QApplication.processEvents()
+                        imgitem.setImage(sr)
+                        labelitem.setText('FPS: %0.2f  —  Count: %d  —  time: %0.0f s' % (fps.mean(),count,time.perf_counter() - tstart),color='#00FF00')
+                        view.autoRange(padding=0)
+                        pg.QtGui.QApplication.processEvents()
                     
                     # print('received img',img.size)
-                    fps[count % 10] = 1 / (time.perf_counter() - t0)
-                    count += 1
-                    t0 = time.perf_counter()
-                    print('img #%d (%dx%d) (%d,%d) - fps: %0.3f' % (count,w,h,bytesPerPixel,numComponents,fps.mean()))
                     continue
                 else:
                     print('received',data,'exiting')
