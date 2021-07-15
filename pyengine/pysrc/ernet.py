@@ -367,6 +367,7 @@ def EvaluateModel(opt,conn,graph_metrics=False):
 
     checkpoint = torch.load(opt.weights, map_location=device)
     print('loading checkpoint',opt.weights)
+    checkpoint['state_dict'] = remove_dataparallel_wrapper(checkpoint['state_dict'])
     net.load_state_dict(checkpoint['state_dict'])
 
     if opt.root[0].split('.')[-1].lower() in ['png','jpg','tif']:
@@ -432,6 +433,7 @@ def EvaluateModel(opt,conn,graph_metrics=False):
             p1,p99 = np.percentile(img,1),np.percentile(img,99)
             print(img.shape,np.max(img),np.min(img))
             imgnorm = exposure.rescale_intensity(img,in_range=(p1,p99))
+            imgnorm = np.clip(imgnorm, -1,1)
             print(imgnorm.shape,np.max(imgnorm),np.min(imgnorm))
             processImage(net,opt,imgfile,imgnorm,savepath_in,savepath_out,idxstr)
             
@@ -473,6 +475,7 @@ def EvaluateModel(opt,conn,graph_metrics=False):
                 basesavepath_graphfigures = '%s/graph/%s' % (basefolder,idxstr)
                 p1,p99 = np.percentile(img[subimgidx],1),np.percentile(img[subimgidx],99)
                 imgnorm = exposure.rescale_intensity(img[subimgidx],in_range=(p1,p99))
+                imgnorm = np.clip(imgnorm, -1,1)
                 processImage(net,opt,imgfile,imgnorm,savepath_in,savepath_out,idxstr)
 
                 # send result                
@@ -527,7 +530,8 @@ def remove_isolated_pixels(image):
 
 
 def binariseImage(I):
-    ind = I[:,:,0] > 250
+    #ind = I[:,:,0] > 250 # old version of skimage
+    ind = I[:,:] > 250
     Ibin = np.zeros((I.shape[0],I.shape[1])).astype('uint8')
     Ibin[ind] = 255
     Ibin = remove_isolated_pixels(Ibin)
@@ -662,9 +666,9 @@ def segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,graph_metri
     opt.narch = 0
     opt.norm = None
     opt.nch_in = 1
-    opt.nch_out = 3
+    opt.nch_out = 4
     opt.cpu = False
-    opt.weights = '../models/meng_3colours_4.pth'
+    opt.weights = '../models/20210710_4class.pth'
     opt.scale = 1
     
     

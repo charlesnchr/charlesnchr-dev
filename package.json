@@ -71,7 +71,7 @@
     "pypush": "yarn workspace ml-engine pypush",
     "pyrelease": "yarn workspace ml-engine pyrelease",
     "pypatch": "yarn workspace ml-engine patch",
-    "socket": "cd pyengine/pysrc && nodemon --exec \"pipenv\" run python engine.py 5002",
+    "socket": "cd pyengine/pysrc && nodemon --exec python engine.py 5002",
     "release": "yarn react-build && yarn electron-build-publish",
     "release-github": "yarn react-build && yarn electron-build-publish-github",
     "build": "yarn react-build && yarn electron-build",
