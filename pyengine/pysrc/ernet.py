@@ -556,11 +556,11 @@ def getGraph(img,basename):
 
     # print('EDGES',graph.edges())
     # print('NODES',graph.nodes())
-    graph_edges_list = [list(e) for e in graph.edges()]
-    graph_nodes_list = [list(e) for e in graph.nodes()]
-    
-    open('%s_edges.dat' % basename,'w').write(str(graph.edges()))
-    open('%s_nodes.dat' % basename,'w').write(str(graph.nodes()))
+    #graph_edges_list = [list(e) for e in graph.edges()]
+    #graph_nodes_list = [list(e) for e in graph.nodes()]
+        
+    open('%s_edges.dat' % basename,'w').write(str(np.array(graph.edges()).tolist()))
+    open('%s_nodes.dat' % basename,'w').write(str(np.array(graph.nodes()).tolist()))
 
     edges = np.array(graph.edges())
 
