@@ -531,10 +531,21 @@ def remove_isolated_pixels(image):
 
 def binariseImage(I):
     #ind = I[:,:,0] > 250 # old version of skimage
-    ind = I[:,:] > 250
+
+    ## 3 class binarise
+    #ind = I[:,:] > 250
+    #Ibin = np.zeros((I.shape[0],I.shape[1])).astype('uint8')
+    #Ibin[ind] = 255
+    #Ibin = remove_isolated_pixels(Ibin)
+
+    ## 4 class binarise (tubules are classes 2 and 4 given 1,2,3,4 from black to white)
     Ibin = np.zeros((I.shape[0],I.shape[1])).astype('uint8')
+    ind = I[:,:] > 250
+    Ibin[ind] = 255
+    ind = (I[:,:] > 80) & (I[:,:] < 90)
     Ibin[ind] = 255
     Ibin = remove_isolated_pixels(Ibin)
+    
     return Ibin
 
 
@@ -613,6 +624,8 @@ def degree_histogram(savepath,G,colour='blue'):
     plt.savefig(savepath)
 
     plt.close()
+    return deg,cnt
+
 
 # here we generate an image where nodes are coloured according to their degrees 
 def graph_image(savepath,G):
@@ -633,8 +646,18 @@ def performGraphProcessing(imgfile,opt, conn, basename):
     img = io.imread(imgfile)
     edges, nodes = getGraph(img, basename)
     G=build_graph(nodes,edges)
-    simple_analysis(G)
-    degree_histogram(savepath_hist,G,'goldenrod')
+    no_nodes,no_edges,assortativity, clustering, compo, ratio_nodes, ratio_edges = simple_analysis(G)
+    deg,cnt = degree_histogram(savepath_hist,G,'goldenrod')
+
+    fid = open('%s_metrics.csv' % basename,'w')
+    fid.write('no_nodes,no_edges,assortativity, clustering, compo, ratio_nodes, ratio_edges\n')
+    print(no_nodes,no_edges,assortativity, clustering, compo, ratio_nodes, ratio_edges,file=fid,sep=',',end='')
+    
+    fid.close()
+    fid = open('%s_degrees.csv' % basename,'w')
+    fid.write('deg,count')
+    for i in range(len(deg)):
+        fid.write('\n%d,%d' % (deg[i],cnt[i]))
     graph_image(savepath_graph,G)
 
     plt.close()
