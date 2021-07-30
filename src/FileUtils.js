@@ -72,6 +72,7 @@ function readFilesRecursively(input_dirs, exts, sortBy, callBack) {
 
   dirs.forEach(function(dir) {
     walk(dir, dir, function(err, res) {
+      if(res === undefined) return;
       files_dict[dir] = res;
       nfiles[dirs.indexOf(dir)] = res.length;
       if (!--pending) {
