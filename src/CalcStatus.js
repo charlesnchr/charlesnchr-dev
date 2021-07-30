@@ -41,7 +41,7 @@ class CalcStatus extends Component {
               <Grid style={{ textAlign: "left" }} item xs>
                 {taskName}
               </Grid>
-              <Grid item xs>
+              <Grid style={{marginRight:15}} item xs>
                 {n1 + "/" + n2}
               </Grid>
             </Grid>
@@ -106,12 +106,12 @@ class CalcStatus extends Component {
   
     render() {
       var progressBar = this.state.progress ? (
-        <LinearProgress variant={"indeterminate"} value={this.state.progress} />
+        <LinearProgress style={{marginRight:15}} variant={"indeterminate"} value={this.state.progress} />
       ) : (
         ""
       );
       return (
-        <span>
+        <span style={{paddingRight:20}}>
           {progressBar}
           {this.state.status}
         </span>

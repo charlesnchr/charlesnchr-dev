@@ -63,10 +63,12 @@ class ImgContainer extends Component {
       selectFile: props.selectFile,
       selectedFilepaths: [],
       storedGeometry: {},
+      filepaths: []
     };
 
     // log.info("NOW SETTING UPDATE");
     sess.updateGeometry = this.updateGeometry.bind(this);
+    sess.updateFilepaths = this.updateGeometry.bind(this);
     sess.removeResults = this.removeResults.bind(this);
     sess.revertResults = this.revertResults.bind(this);
     sess.recoverResults = this.recoverResults.bind(this);
@@ -195,6 +197,7 @@ class ImgContainer extends Component {
     });
   }
 
+
   updateGeometry(filepaths) {
     let g,
       storedGeometry = this.state.storedGeometry;
@@ -231,6 +234,7 @@ class ImgContainer extends Component {
       blockheight: g.blockheight,
       gridheight: g.gridheight,
       storedGeometry: storedGeometry,
+      filepaths: sess.filepaths
     });
     return g;
   }
@@ -299,13 +303,22 @@ class ImgContainer extends Component {
   }
 
   imgGrid(filepaths, startidx, Nblock, offset) {
+    log.info("remaking imgGrid",startidx);
     let filepaths_displayed = filepaths.slice(startidx, startidx + Nblock);
     let selectedFilepaths = this.state.selectedFilepaths;
     const imgdivs = filepaths_displayed.map((filepath, idx) => {
       const selectedBool = selectedFilepaths.indexOf(filepath) > -1;
-
-      return <Img selectedBool={selectedBool} filepath={filepath} />;
+      return <Img selectedBool={selectedBool} filepath={filepath} key={"img-" + filepath} />;
     });
+    log.info("KEY","imgGrid-" +
+    sess.filepaths_hash +
+    "-" +
+    this.state.resultImages +
+    "-" +
+    startidx +
+    "-" +
+    sess.sortBy  );
+
     return (
       <Box
         style={{ position: "absolute", top: offset }}
@@ -315,7 +328,9 @@ class ImgContainer extends Component {
           "-" +
           this.state.resultImages +
           "-" +
-          startidx
+          startidx +
+          "-" +
+          sess.sortBy
         }
         id="imgcontainer"
       >
@@ -383,7 +398,7 @@ class ImgContainer extends Component {
     //   sess.resultImages
     // );
     sess.thumbQueue = [];
-
+    log.info("redrawing",filepaths[0]);
     imgs = [
       this.imgGrid(filepaths, startidx, Nblock, baseoffset),
       this.imgGrid(

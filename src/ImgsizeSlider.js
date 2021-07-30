@@ -10,6 +10,7 @@ import ImageIcon from "@material-ui/icons/Image";
 
 
 import { createMuiTheme, ThemeProvider } from "@material-ui/core/styles";
+const log = window.require("electron-log");
 
 const darktheme = createMuiTheme({
     palette: {
@@ -54,8 +55,9 @@ export default class ImgsizeSlider extends Component {
     }
   
     handleSelect(e) {
-      // log.info('Sorting by', e.target.value);
+      log.info('Sorting by', e.target.value);
       sess.resort = true;
+      sess.sortBy = e.target.value;
       sess.readFolders(sess.displayedFolders, e.target.value);
     }
   

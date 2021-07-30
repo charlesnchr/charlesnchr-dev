@@ -216,7 +216,7 @@ def changeColour(I): # change colours (used to match WEKA output, request by Men
 
 
 
-def AssembleStacks(basefolder,outdir):
+def AssembleStacks(basefolder):
     # export to tif
     
     folders = []
@@ -248,9 +248,9 @@ def AssembleStacks(basefolder,outdir):
         print('')
         
         stackname = os.path.basename(basefolder)
-        stackfilename = '%s/%s_%s.tif' % (outdir,stackname,subfolder)
+        stackfilename = '%s/%s_%s.tif' % (basefolder,stackname,subfolder)
         io.imsave(stackfilename,I,compress=6)
-        print('saved stack: %s.tif' % stackfilename)
+        print('saved stack: %s' % stackfilename)
 
 
 
@@ -348,7 +348,7 @@ def processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr):
 
 
 
-def EvaluateModel(opt,conn):
+def EvaluateModel(opt,conn,graph_metrics=False):
 
     if opt.stats_tubule_sheet:
         # if opt.out == 'root':
@@ -367,6 +367,7 @@ def EvaluateModel(opt,conn):
 
     checkpoint = torch.load(opt.weights, map_location=device)
     print('loading checkpoint',opt.weights)
+    checkpoint['state_dict'] = remove_dataparallel_wrapper(checkpoint['state_dict'])
     net.load_state_dict(checkpoint['state_dict'])
 
     if opt.root[0].split('.')[-1].lower() in ['png','jpg','tif']:
@@ -379,18 +380,37 @@ def EvaluateModel(opt,conn):
                 for dir in opt.root:
                     imgs.extend(glob.glob(dir + '/**/*.%s' % ext,recursive=True))
 
+
+    # find total number of images to process
+    nimgs = 0
+    for imgidx, imgfile in enumerate(imgs):
+        basepath, ext = os.path.splitext(imgfile)
+
+        if ext.lower() == '.tif':
+            img = io.imread(imgfile)
+            if len(img.shape) == 2: # grayscale 
+                nimgs += 1
+            elif  img.shape[2] <= 3:
+                nimgs += 1
+            else: # t or z stack
+                nimgs += img.shape[0]
+        else:
+            nimgs += 1
+
     outpaths = []
+    imgcount = 0
 
     for imgidx, imgfile in enumerate(imgs):
-        conn.send(("si%d,%d" % (imgidx, len(imgs))).encode())
-        ready = conn.recv(20).decode()
-
         basepath, ext = os.path.splitext(imgfile)
 
         if ext.lower() == '.tif':
             img = io.imread(imgfile).astype('float32')
         else:
             img = np.array(Image.open(imgfile)).astype('float32')
+
+        if len(img.shape) > 2 and img.shape[2] <= 3:
+            print('removing colour channel')
+            img = np.max(img,2) # remove colour channel
 
         # img = io.imread(imgfile)
         # img = (img - np.min(img)) / (np.max(img) - np.min(img)) 
@@ -400,42 +420,83 @@ def EvaluateModel(opt,conn):
         if opt.out == 'root': # save next to orignal
             savepath_out = imgfile.replace(ext,'_out_' + idxstr + '.png')
             savepath_in = imgfile.replace(ext,'_in_' + idxstr + '.png')
-        else:
-            savepath_out = '%s/%s_out.png' % (opt.out,idxstr)
-            savepath_in = '%s/%s_in.png' % (opt.out,idxstr)
+            basesavepath_graphfigures = imgfile.replace(ext,'')
+        else: 
+            pass # not implemented
 
         # process image
         if len(img.shape) == 2:            
+            # status
+            conn.send(("siSegmentation,%d,%d" % (imgcount, nimgs)).encode())
+            ready = conn.recv(20).decode()
+
             p1,p99 = np.percentile(img,1),np.percentile(img,99)
             print(img.shape,np.max(img),np.min(img))
             imgnorm = exposure.rescale_intensity(img,in_range=(p1,p99))
+            imgnorm = np.clip(imgnorm, -1,1)
             print(imgnorm.shape,np.max(imgnorm),np.min(imgnorm))
             processImage(net,opt,imgfile,imgnorm,savepath_in,savepath_out,idxstr)
-        elif img.shape[2] <= 3:
-            print('removing colour channel')
-            img = np.max(img,2)
-            p1,p99 = np.percentile(img,1),np.percentile(img,99)
-            imgnorm = exposure.rescale_intensity(img,in_range=(p1,p99))
-            processImage(net,opt,imgfile,imgnorm,savepath_in,savepath_out,idxstr)
+            
+            # send result    
+            outpaths.append(savepath_out)
+            conn.send(('2' + '\n'.join(outpaths)).encode()) # partial render
+            ready = conn.recv(20).decode()
+
+            # graph processing
+            if graph_metrics:
+                conn.send(("siGraph metrics,%d,%d" % (imgcount, nimgs)).encode())
+                ready = conn.recv(20).decode()
+
+                graph_out_paths = performGraphProcessing(savepath_out,opt, conn, basesavepath_graphfigures)
+
+                outpaths.extend(graph_out_paths)
+                conn.send(('2' + '\n'.join(outpaths)).encode()) # partial render
+                ready = conn.recv(20).decode()
+
+            imgcount += 1
+
         else: # more than 3 channels, assuming stack
             basefolder = basepath
             os.makedirs(basefolder,exist_ok=True)
             if opt.save_input:
                 os.makedirs(basefolder + '/in',exist_ok=True)
+            if graph_metrics:
+                os.makedirs(basefolder + '/graph',exist_ok=True)
             os.makedirs(basefolder + '/out',exist_ok=True)
 
             for subimgidx in range(img.shape[0]):
+                # status
+                conn.send(("siSegmentation,%d,%d" % (imgcount, nimgs)).encode())
+                ready = conn.recv(20).decode()
+
                 idxstr = '%04d_%04d' % (imgidx,subimgidx)
                 savepath_in = '%s/in/%s.png' % (basefolder,idxstr)
                 savepath_out = '%s/out/%s.png' % (basefolder,idxstr)
+                basesavepath_graphfigures = '%s/graph/%s' % (basefolder,idxstr)
                 p1,p99 = np.percentile(img[subimgidx],1),np.percentile(img[subimgidx],99)
                 imgnorm = exposure.rescale_intensity(img[subimgidx],in_range=(p1,p99))
+                imgnorm = np.clip(imgnorm, -1,1)
                 processImage(net,opt,imgfile,imgnorm,savepath_in,savepath_out,idxstr)
-            AssembleStacks(basefolder,opt.root)
 
-        outpaths.append(savepath_out)
-        conn.send(('2' + '\n'.join(outpaths)).encode()) # partial render
-        ready = conn.recv(20).decode()
+                # send result                
+                outpaths.append(savepath_out)
+                conn.send(('2' + '\n'.join(outpaths)).encode()) # partial render
+                ready = conn.recv(20).decode()
+
+                # graph processing
+                if graph_metrics:
+                    conn.send(("siGraph metrics,%d,%d" % (imgcount, nimgs)).encode())
+                    ready = conn.recv(20).decode()
+
+                    graph_out_paths = performGraphProcessing(savepath_out,opt, conn, basesavepath_graphfigures)
+
+                    outpaths.extend(graph_out_paths)
+                    conn.send(('2' + '\n'.join(outpaths)).encode()) # partial render
+                    ready = conn.recv(20).decode()
+
+                imgcount += 1
+            AssembleStacks(basefolder)
+
 
     if opt.stats_tubule_sheet:
         opt.csvfid.close()
@@ -469,14 +530,15 @@ def remove_isolated_pixels(image):
 
 
 def binariseImage(I):
-    ind = I[:,:,0] > 250
+    #ind = I[:,:,0] > 250 # old version of skimage
+    ind = I[:,:] > 250
     Ibin = np.zeros((I.shape[0],I.shape[1])).astype('uint8')
     Ibin[ind] = 255
     Ibin = remove_isolated_pixels(Ibin)
     return Ibin
 
 
-def getGraph(img):
+def getGraph(img,basename):
     img = binariseImage(img) / 255
     ske = skeletonize(img).astype(np.uint16)
     # ske = img.astype('uint16')
@@ -490,13 +552,15 @@ def getGraph(img):
         
     # draw node by o
     nodes = graph.nodes()
-    ps = np.array([nodes[i]['o'] for i in nodes])
+    ps = np.array([nodes[i]['o'] for i in nodes])   
 
     # print('EDGES',graph.edges())
     # print('NODES',graph.nodes())
-    
-    # open('%s/%d_edges.dat' % (folder,iidx),'w').write(str(graph.edges()))
-    # open('%s/%d_nodes.dat' % (folder,iidx),'w').write(str(graph.nodes()))
+    #graph_edges_list = [list(e) for e in graph.edges()]
+    #graph_nodes_list = [list(e) for e in graph.nodes()]
+        
+    open('%s_edges.dat' % basename,'w').write(str(np.array(graph.edges()).tolist()))
+    open('%s_nodes.dat' % basename,'w').write(str(np.array(graph.nodes()).tolist()))
 
     edges = np.array(graph.edges())
 
@@ -558,28 +622,20 @@ def graph_image(savepath,G):
     plt.savefig(savepath)
 
     plt.close()
+
+
+
+def performGraphProcessing(imgfile,opt, conn, basename):
     
+    savepath_hist = '%s_hist.png' % basename
+    savepath_graph = '%s_graph.png' % basename
 
-
-def performGraphProcessing(opt, conn):
-    conn.send(("siGraph metrics,%d,%d" % (0, len(opt.root))).encode())
-    ready = conn.recv(20).decode()
-
-    savepath_hist = opt.root[0].replace('.png','_hist.png')
-    savepath_graph = opt.root[0].replace('.png','_graph.png')
-
-    img = io.imread(opt.root[0])
-    edges, nodes = getGraph(img)
+    img = io.imread(imgfile)
+    edges, nodes = getGraph(img, basename)
     G=build_graph(nodes,edges)
     simple_analysis(G)
     degree_histogram(savepath_hist,G,'goldenrod')
     graph_image(savepath_graph,G)
-
-    conn.send(('2' + '\n'.join([savepath_graph,savepath_hist])).encode()) # partial render
-    ready = conn.recv(20).decode()
-
-    conn.send("sd".encode())  # status done
-    ready = conn.recv(20).decode()
 
     plt.close()
 
@@ -587,34 +643,7 @@ def performGraphProcessing(opt, conn):
 
 
 
-
-def performGraphProcessing(opt, conn):
-    conn.send(("siGraph metrics,%d,%d" % (0, len(opt.root))).encode())
-    ready = conn.recv(20).decode()
-
-    savepath_hist = opt.root[0].replace('.png','_hist.png')
-    savepath_graph = opt.root[0].replace('.png','_graph.png')
-
-    img = io.imread(opt.root[0])
-    edges, nodes = getGraph(img)
-    G=build_graph(nodes,edges)
-    simple_analysis(G)
-    degree_histogram(savepath_hist,G,'goldenrod')
-    graph_image(savepath_graph,G)
-
-    conn.send(('2' + '\n'.join([savepath_graph,savepath_hist])).encode()) # partial render
-    ready = conn.recv(20).decode()
-
-    conn.send("sd".encode())  # status done
-    ready = conn.recv(20).decode()
-
-    plt.close()
-
-    return [savepath_graph,savepath_hist]
-
-
-
-def segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,graph_metrics,save_in_original_folders,save_input=False):
+def segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,graph_metrics,save_in_original_folders,save_input=True):
     import sys
     opt = Namespace()
     opt.root = filepaths
@@ -622,8 +651,12 @@ def segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,graph_metri
     opt.stats_tubule_sheet = stats_tubule_sheet
     opt.weka_colours = weka_colours
     opt.save_input = save_input
+    
+    opt.exportdir = exportdir
+    opt.jobname = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:-3]
+
     if stats_tubule_sheet:
-        csvfid_path = '%s/%s_stats_tubule_sheet.csv' % (exportdir, datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:-3])
+        csvfid_path = '%s/%s_stats_tubule_sheet.csv' % (opt.exportdir, opt.jobname)
         opt.csvfid = open(csvfid_path,'w')
 
     ## model specific 
@@ -635,9 +668,9 @@ def segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,graph_metri
     opt.narch = 0
     opt.norm = None
     opt.nch_in = 1
-    opt.nch_out = 3
+    opt.nch_out = 4
     opt.cpu = False
-    opt.weights = '../models/meng_3colours_4.pth'
+    opt.weights = '../models/20210710_4class.pth'
     opt.scale = 1
     
     
@@ -647,9 +680,7 @@ def segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,graph_metri
     print(opt)
     
     if graph_metrics:
-        paths = performGraphProcessing(opt, conn)
-        paths.extend(EvaluateModel(opt,conn))
-        return pths
+        return EvaluateModel(opt,conn,graph_metrics)
     else:
         return EvaluateModel(opt,conn)
 

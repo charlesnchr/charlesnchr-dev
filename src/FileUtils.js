@@ -115,7 +115,7 @@ function readFilesRecursively(input_dirs, exts, sortBy, callBack) {
         } else if (sortBy && sortBy === "dateCreated") {
           log.info("sorting by datecreated folderorder");
           files.sort((a, b) => {
-            return a.dir < b.dir;
+            return a.birthtimeMs > b.birthtimeMs;
           });
         } else {
           files.sort((a, b) => {
@@ -178,7 +178,7 @@ function readFilesSync(input_dirs, exts, sortBy) {
   } else if (sortBy && sortBy === "reverseFolderOrder") {
   } else if (sortBy && sortBy === "dateCreated") {
     files.sort((a, b) => {
-      return a.stat.birthtime > b.stat.birthtime;
+      return a.stat.birthtimeMs > b.stat.birthtimeMs;
     });
   } else {
     files.sort((a, b) => {

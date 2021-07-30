@@ -232,4 +232,8 @@ if __name__ == '__main__':
         if os.path.isdir(oldfolder):
             shutil.rmtree(oldfolder, ignore_errors=True)
 
+    
+    # for developing
+    mlsim.handle_microManagerPluginState('on', 5003)
+
     socketserver()

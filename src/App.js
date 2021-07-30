@@ -285,8 +285,10 @@ class App extends Component {
       g = sess.updateGeometry(sess.filepaths);
       this.setState({ gridheight: g.gridheight });
     } else if (sess.resort) {
+      log.info(sess.filepaths[0],'\nVERSUS\n',filedata.filepaths[0]);
       sess.filepaths = filedata.filepaths;
       sess.dirsizes = filedata.dirsizes;
+      log.info(sess.filepaths[0],'\nVERSUS\n',filedata.filepaths[0]);
       g = sess.updateGeometry(sess.filepaths);
       this.setState({ gridheight: g.gridheight });
       sess.resort = false;
@@ -411,7 +413,7 @@ class App extends Component {
       >
         <Grid container alignItems="center" justify="space-between" spacing={2}>
           <Grid item style={{ width: sess.sidePanelWidth }}>
-            <img src={logo} alt="logo" height={50} />
+            <img src={logo} alt="logo" height={40} style={{marginTop:12}} />
           </Grid>
           <Grid item style={{ marginBottom: 5 }}>
             <BPButton
