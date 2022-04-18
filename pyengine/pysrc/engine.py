@@ -46,7 +46,7 @@ def run_command(conn, address):
         elif cmd == 'Plugin_MLSIM':
             misc.log('ML-SIM Reconstruct: %s' % str(data))
             exportdir = args[0]
-            
+
             filepaths = []
             while True:
                 conn.send('p'.encode())  # send paths confirmations
@@ -60,7 +60,7 @@ def run_command(conn, address):
                     # filepaths.extend(res_chunk)
                     for e in res_chunk:
                         filepaths.append(e.decode())
-            
+
             if len(filepaths) == 0:
                 if exit():
                     print('Can now close thread')
@@ -77,7 +77,7 @@ def run_command(conn, address):
 
                 conn.recv(20).decode()  # ready to exit
                 if exit():
-                    print('Can now close thread')                
+                    print('Can now close thread')
         elif cmd == 'Plugin_MLSIM_MM_integration':
             misc.log('MLSIM Micromanager server toggled')
             desiredState = args[0]
@@ -91,7 +91,7 @@ def run_command(conn, address):
             stats_tubule_sheet = args[2] == 'true'
             graph_metrics = args[3] == 'true'
             save_in_original_folders = args[4] == 'true'
-            
+
             filepaths = []
             while True:
                 conn.send('p'.encode())  # send paths confirmations
@@ -105,7 +105,7 @@ def run_command(conn, address):
                     # filepaths.extend(res_chunk)
                     for e in res_chunk:
                         filepaths.append(e.decode())
-            
+
             if len(filepaths) == 0:
                 if exit():
                     print('Can now close thread')
@@ -121,7 +121,7 @@ def run_command(conn, address):
 
                 conn.recv(20).decode()  # ready to exit
                 if exit():
-                    print('Can now close thread')                   
+                    print('Can now close thread')
         elif cmd == 'exportToFolder' or cmd == 'exportToZip':
             print('export to folder', args[1:])
             if len(args) < 3:
@@ -232,7 +232,7 @@ if __name__ == '__main__':
         if os.path.isdir(oldfolder):
             shutil.rmtree(oldfolder, ignore_errors=True)
 
-    
+
     # for developing
     mlsim.handle_microManagerPluginState('on', 5003)
 

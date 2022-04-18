@@ -13,18 +13,18 @@ class CalcStatus extends Component {
       super(props);
       this.state = { status: null, progress: null };
     }
-  
+
     isCalcFeaturesFinished() {
       if (this.state.status == null && this.state.progress == null) return true;
       else return false;
     }
-  
+
     componentDidMount() {
       sess.isCalcFeaturesFinished = this.isCalcFeaturesFinished.bind(this);
-  
+
       ipcRenderer.on("status", (event, cmd, msg) => {
         let p, s;
-  
+
         if (cmd === "i") {
           // indexing
 
@@ -99,11 +99,11 @@ class CalcStatus extends Component {
           s = null;
           p = null;
         }
-  
+
         this.setState({ status: s, progress: p });
       });
     }
-  
+
     render() {
       var progressBar = this.state.progress ? (
         <LinearProgress style={{marginRight:15}} variant={"indeterminate"} value={this.state.progress} />

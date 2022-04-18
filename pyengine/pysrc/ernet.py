@@ -3,7 +3,7 @@ import datetime
 import math
 
 import torch
-import time 
+import time
 
 import torch.nn as nn
 from PIL import Image, ImageFile  # ImageOps
@@ -14,10 +14,11 @@ import numpy as np
 import os
 
 from argparse import Namespace
+from swinir_rcab_arch import SwinIR_RCAB
 
 import torchvision.transforms as transforms
-toTensor = transforms.ToTensor()  
-toPIL = transforms.ToPILImage()      
+toTensor = transforms.ToTensor()
+toPIL = transforms.ToPILImage()
 
 
 # ----------------------------------- RCAN ------------------------------------------
@@ -88,7 +89,7 @@ class ResidualGroup(nn.Module):
 
 ## Residual Channel Attention Network (RCAN)
 class RCAN(nn.Module):
-    def __init__(self, opt): 
+    def __init__(self, opt):
         super(RCAN, self).__init__()
         n_resgroups = opt.n_resgroups
         n_resblocks = opt.n_resblocks
@@ -97,7 +98,7 @@ class RCAN(nn.Module):
         reduction = opt.reduction
         act = nn.ReLU(True)
         self.narch = opt.narch
-        
+
         if not opt.norm == None:
             self.normalize, self.unnormalize = normalizationTransforms(opt.norm)
         else:
@@ -129,7 +130,7 @@ class RCAN(nn.Module):
             self.head82 = conv(n_feats, n_feats, kernel_size)
             self.combineHead = conv(9*n_feats, n_feats, kernel_size)
 
-            
+
 
         # define body module
         modules_body = [
@@ -146,7 +147,7 @@ class RCAN(nn.Module):
             modules_tail = [
                 Upsampler(conv, opt.scale, n_feats, act=False),
                 conv(n_feats, opt.nch_out, kernel_size)]
-        
+
         self.body = nn.Sequential(*modules_body)
         self.tail = nn.Sequential(*modules_tail)
 
@@ -178,7 +179,7 @@ class RCAN(nn.Module):
         if not self.unnormalize == None:
             x = self.unnormalize(x)
 
-        return x 
+        return x
 
 
 
@@ -218,10 +219,10 @@ def changeColour(I): # change colours (used to match WEKA output, request by Men
 
 def AssembleStacks(basefolder):
     # export to tif
-    
+
     folders = []
     folders.append(basefolder + '/in')
-    folders.append(basefolder + '/out') 
+    folders.append(basefolder + '/out')
 
     for subfolder in ['in','out']:
         folder = basefolder + '/' + subfolder
@@ -229,24 +230,24 @@ def AssembleStacks(basefolder):
         imgs = glob.glob(folder + '/*.jpg')
         imgs.extend(glob.glob(folder + '/*.png'))
         n = len(imgs)
-        
+
         shape = io.imread(imgs[0]).shape
         h = shape[0]
         w = shape[1]
-        
+
         if len(shape) == 2:
             I = np.zeros((n,h,w),dtype='uint8')
         else:
             c = shape[2]
             I = np.zeros((n,h,w,c),dtype='uint8')
-        
+
         for nidx, imgfile in enumerate(imgs):
             img = io.imread(imgfile)
             I[nidx] = img
 
             print('%s : [%d/%d] loaded imgs' % (folder,nidx+1,len(imgs)),end='\r')
         print('')
-        
+
         stackname = os.path.basename(basefolder)
         stackfilename = '%s/%s_%s.tif' % (basefolder,stackname,subfolder)
         io.imsave(stackfilename,I,compress=6)
@@ -254,7 +255,7 @@ def AssembleStacks(basefolder):
 
 
 
-def processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr):
+def processImage_tiled(net,opt,imgid,img,savepath_in,savepath_out):
 
     imageSize = opt.imageSize
 
@@ -267,7 +268,7 @@ def processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr):
 
     device = torch.device('cuda' if torch.cuda.is_available() and not opt.cpu else 'cpu')
 
-    # img_norm = (img - np.min(img)) / (np.max(img) - np.min(img)) 
+    # img_norm = (img - np.min(img)) / (np.max(img) - np.min(img))
     images = []
 
     images.append(img[:imageSize,:imageSize])
@@ -279,24 +280,22 @@ def processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr):
     for idx,sub_img in enumerate(images):
         # sub_img = (sub_img - np.min(sub_img)) / (np.max(sub_img) - np.min(sub_img))
         pil_sub_img = Image.fromarray((sub_img*255).astype('uint8'))
-        
+
         # sub_tensor = torch.from_numpy(np.array(pil_sub_img)/255).float().unsqueeze(0)
         sub_tensor = toTensor(pil_sub_img)
-
-        # print(my_sub_tensor.shape,sub_tensor.shape)
 
         sub_tensor = sub_tensor.unsqueeze(0)
 
         with torch.no_grad():
             sr = net(sub_tensor.to(device))
-            
+
             sr = sr.cpu()
             # sr = torch.clamp(sr,min=0,max=1)
 
             m = nn.LogSoftmax(dim=0)
             sr = m(sr[0])
             sr = sr.argmax(dim=0, keepdim=True)
-            
+
             # pil_sr_img = Image.fromarray((255*(sr.float() / (opt.nch_out - 1)).squeeze().numpy()).astype('uint8'))
             pil_sr_img = toPIL(sr.float() / (opt.nch_out - 1))
 
@@ -304,7 +303,7 @@ def processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr):
             # pil_sub_img.save(opt.out + '/imageinput_' + str(i) + '_' + str(idx) + '.png')
 
             proc_images.append(pil_sr_img)
-        
+
     # stitch together
     img1 = proc_images[0]
     img2 = proc_images[1]
@@ -326,24 +325,88 @@ def processImage(net,opt,imgfile,img,savepath_in,savepath_out,idxstr):
     # crop?
     # oimg = oimg[10:-10,10:-10]
     # img = img[10:-10,10:-10]
-    # remove boundaries? 
+    # remove boundaries?
     # oimg[:10,:] = 0
     # oimg[-10:,:] = 0
     # oimg[:,:10] = 0
     # oimg[:,-10:] = 0
 
     if opt.stats_tubule_sheet:
-        fraction1 = np.sum(oimg == 255) # tubule
-        fraction2 = np.sum(oimg == 127) # sheet
-        npix = w*h
-        opt.csvfid.write('%s:%s,%0.4f,%0.4f,%0.4f\n' % (os.path.basename(imgfile),idxstr,fraction1/npix,fraction2/npix,fraction1/fraction2))
+        npix1 = np.sum(oimg == 170) # tubule
+        npix2 = np.sum(oimg == 255) # sheet
+        npix3 = np.sum(oimg == 85) # SBT
+
+        npix = npix1+npix2+npix3
+        opt.csvfid.write('%s,%0.4f,%0.4f,%0.4f\n' % (imgid,npix1/npix,npix2/npix,npix3/npix))
     if opt.weka_colours:
         oimg = changeColour(oimg)
 
     Image.fromarray(oimg).save(savepath_out)
     if opt.save_input:
         io.imsave(savepath_in,img_as_ubyte(img))
-        
+
+    # Image.fromarray((img*255).astype('uint8')).save('%s/input_%04d.png' % (opt.out,i))
+
+def processImage(net,opt,imgid,img,savepath_in,savepath_out):
+
+    imageSize = opt.imageSize
+
+    h,w = img.shape[0], img.shape[1]
+
+    device = torch.device('cuda' if torch.cuda.is_available() and not opt.cpu else 'cpu')
+
+    # img_norm = (img - np.min(img)) / (np.max(img) - np.min(img))
+    pil_sub_img = Image.fromarray((img*255).astype('uint8'))
+
+    # sub_tensor = torch.from_numpy(np.array(pil_sub_img)/255).float().unsqueeze(0)
+    sub_tensor = toTensor(pil_sub_img)
+
+    if 'swin' in opt.weights and 'nch1' not in opt.weights:
+        sub_tensor = torch.cat((sub_tensor,sub_tensor,sub_tensor),0)
+    sub_tensor = sub_tensor.unsqueeze(0)
+
+
+    with torch.no_grad():
+        sr = net(sub_tensor.to(device))
+
+        sr = sr.cpu()
+        # sr = torch.clamp(sr,min=0,max=1)
+
+        m = nn.LogSoftmax(dim=0)
+        sr = m(sr[0])
+        sr = sr.argmax(dim=0, keepdim=True)
+
+        # pil_sr_img = Image.fromarray((255*(sr.float() / (opt.nch_out -1)).squeeze().numpy()).astype('uint8'))
+        pil_sr_img = toPIL(sr.float() / (opt.nch_out - 1))
+
+        # pil_sr_img.save(opt.out + '/segmeneted_output_' + str(i) + '_' + str(idx) + '.png')
+        # pil_sub_img.save(opt.out + '/imageinput_' + str(i) + '_' + str(idx) + '.png')
+
+
+    oimg = np.array(pil_sr_img)
+
+    # workaround for new order of classes
+    sheet_ind = oimg == 255
+    SBT_ind = oimg == 85
+    tubule_ind = oimg == 170
+    oimg[sheet_ind] = 85
+    oimg[SBT_ind] = 170
+    oimg[tubule_ind] = 255
+
+    if opt.stats_tubule_sheet:
+        npix1 = np.sum(oimg == 255) # tubule
+        npix2 = np.sum(oimg == 85) # sheet
+        npix3 = np.sum(oimg == 170) # SBT
+
+        npix = npix1+npix2+npix3
+        opt.csvfid.write('%s,%0.4f,%0.4f,%0.4f\n' % (imgid,npix1/npix,npix2/npix,npix3/npix))
+    if opt.weka_colours:
+        oimg = changeColour(oimg)
+
+    Image.fromarray(oimg).save(savepath_out)
+    if opt.save_input:
+        io.imsave(savepath_in,img_as_ubyte(img))
+
     # Image.fromarray((img*255).astype('uint8')).save('%s/input_%04d.png' % (opt.out,i))
 
 
@@ -361,13 +424,30 @@ def EvaluateModel(opt,conn,graph_metrics=False):
         #     opt.csvfid = open('%s/stats_tubule_sheet.csv' % opt.out,'w')
         opt.csvfid.write('Filename,Tubule fraction,Sheet fraction,Tubule/sheet ratio\n')
 
-    net = RCAN(opt)
+    if opt.useTransformer:
+        print('LOADING: Transformer architecture')
+        # Swin model
+        opt.task = 'segment'
+        net = SwinIR_RCAB(
+            opt,
+            img_size=128,
+            in_chans=1,
+            upscale=1,
+            use_checkpoint=False,
+            vis=False
+        )
+    else:
+        print('LOADING: CNN architecture')
+        # RCAN model
+        net = RCAN(opt)
+
+
     device = torch.device('cuda' if torch.cuda.is_available() and not opt.cpu else 'cpu')
     net.to(device)
 
     checkpoint = torch.load(opt.weights, map_location=device)
     print('loading checkpoint',opt.weights)
-    checkpoint['state_dict'] = remove_dataparallel_wrapper(checkpoint['state_dict'])
+    # checkpoint['state_dict'] = remove_dataparallel_wrapper(checkpoint['state_dict'])
     net.load_state_dict(checkpoint['state_dict'])
 
     if opt.root[0].split('.')[-1].lower() in ['png','jpg','tif']:
@@ -388,7 +468,7 @@ def EvaluateModel(opt,conn,graph_metrics=False):
 
         if ext.lower() == '.tif':
             img = io.imread(imgfile)
-            if len(img.shape) == 2: # grayscale 
+            if len(img.shape) == 2: # grayscale
                 nimgs += 1
             elif  img.shape[2] <= 3:
                 nimgs += 1
@@ -400,20 +480,25 @@ def EvaluateModel(opt,conn,graph_metrics=False):
     outpaths = []
     imgcount = 0
 
+    # primary loop
     for imgidx, imgfile in enumerate(imgs):
         basepath, ext = os.path.splitext(imgfile)
 
         if ext.lower() == '.tif':
-            img = io.imread(imgfile).astype('float32')
+            img = io.imread(imgfile)
         else:
-            img = np.array(Image.open(imgfile)).astype('float32')
+            img = np.array(Image.open(imgfile))
+
+        img = (img - np.min(img)) / (np.max(img) - np.min(img))
+        img = img.astype('float')
+
 
         if len(img.shape) > 2 and img.shape[2] <= 3:
             print('removing colour channel')
             img = np.max(img,2) # remove colour channel
 
         # img = io.imread(imgfile)
-        # img = (img - np.min(img)) / (np.max(img) - np.min(img)) 
+        # img = (img - np.min(img)) / (np.max(img) - np.min(img))
 
         # filenames for saving
         idxstr = '%04d' % imgidx
@@ -421,11 +506,11 @@ def EvaluateModel(opt,conn,graph_metrics=False):
             savepath_out = imgfile.replace(ext,'_out_' + idxstr + '.png')
             savepath_in = imgfile.replace(ext,'_in_' + idxstr + '.png')
             basesavepath_graphfigures = imgfile.replace(ext,'')
-        else: 
+        else:
             pass # not implemented
 
         # process image
-        if len(img.shape) == 2:            
+        if len(img.shape) == 2:
             # status
             conn.send(("siSegmentation,%d,%d" % (imgcount, nimgs)).encode())
             ready = conn.recv(20).decode()
@@ -433,21 +518,22 @@ def EvaluateModel(opt,conn,graph_metrics=False):
             p1,p99 = np.percentile(img,1),np.percentile(img,99)
             print(img.shape,np.max(img),np.min(img))
             imgnorm = exposure.rescale_intensity(img,in_range=(p1,p99))
-            imgnorm = np.clip(imgnorm, -1,1)
             print(imgnorm.shape,np.max(imgnorm),np.min(imgnorm))
-            processImage(net,opt,imgfile,imgnorm,savepath_in,savepath_out,idxstr)
-            
-            # send result    
+            imgid = '%s:%s' % (os.path.basename(imgfile),idxstr)
+            processImage(net,opt,imgid,imgnorm,savepath_in,savepath_out)
+
+            # send result
             outpaths.append(savepath_out)
             conn.send(('2' + '\n'.join(outpaths)).encode()) # partial render
             ready = conn.recv(20).decode()
 
             # graph processing
             if graph_metrics:
+                # print("Graph metrics,%d,%d" % (imgcount, nimgs))
                 conn.send(("siGraph metrics,%d,%d" % (imgcount, nimgs)).encode())
                 ready = conn.recv(20).decode()
 
-                graph_out_paths = performGraphProcessing(savepath_out,opt, conn, basesavepath_graphfigures)
+                graph_out_paths = performGraphProcessing(savepath_out,opt, basesavepath_graphfigures, imgid)
 
                 outpaths.extend(graph_out_paths)
                 conn.send(('2' + '\n'.join(outpaths)).encode()) # partial render
@@ -460,12 +546,13 @@ def EvaluateModel(opt,conn,graph_metrics=False):
             os.makedirs(basefolder,exist_ok=True)
             if opt.save_input:
                 os.makedirs(basefolder + '/in',exist_ok=True)
-            if graph_metrics:
+            if opt.graph_metrics:
                 os.makedirs(basefolder + '/graph',exist_ok=True)
             os.makedirs(basefolder + '/out',exist_ok=True)
 
             for subimgidx in range(img.shape[0]):
                 # status
+                # print("Segmentation,%d,%d" % (imgcount, nimgs))
                 conn.send(("siSegmentation,%d,%d" % (imgcount, nimgs)).encode())
                 ready = conn.recv(20).decode()
 
@@ -475,20 +562,21 @@ def EvaluateModel(opt,conn,graph_metrics=False):
                 basesavepath_graphfigures = '%s/graph/%s' % (basefolder,idxstr)
                 p1,p99 = np.percentile(img[subimgidx],1),np.percentile(img[subimgidx],99)
                 imgnorm = exposure.rescale_intensity(img[subimgidx],in_range=(p1,p99))
-                imgnorm = np.clip(imgnorm, -1,1)
-                processImage(net,opt,imgfile,imgnorm,savepath_in,savepath_out,idxstr)
+                imgid = '%s:%s' % (os.path.basename(imgfile),idxstr)
+                processImage(net,opt,imgid,imgnorm,savepath_in,savepath_out)
 
-                # send result                
+                # send result
                 outpaths.append(savepath_out)
                 conn.send(('2' + '\n'.join(outpaths)).encode()) # partial render
                 ready = conn.recv(20).decode()
 
                 # graph processing
-                if graph_metrics:
+                if opt.graph_metrics:
+                    # print("Graph metrics,%d,%d" % (imgcount, nimgs))
                     conn.send(("siGraph metrics,%d,%d" % (imgcount, nimgs)).encode())
                     ready = conn.recv(20).decode()
 
-                    graph_out_paths = performGraphProcessing(savepath_out,opt, conn, basesavepath_graphfigures)
+                    graph_out_paths = performGraphProcessing(savepath_out,opt, basesavepath_graphfigures,imgid)
 
                     outpaths.extend(graph_out_paths)
                     conn.send(('2' + '\n'.join(outpaths)).encode()) # partial render
@@ -496,7 +584,6 @@ def EvaluateModel(opt,conn,graph_metrics=False):
 
                 imgcount += 1
             AssembleStacks(basefolder)
-
 
     if opt.stats_tubule_sheet:
         opt.csvfid.close()
@@ -529,23 +616,33 @@ def remove_isolated_pixels(image):
     return new_image
 
 
+#def binariseImage(I):
+#    #ind = I[:,:,0] > 250 # old version of skimage
+
+#    ## 3 class binarise
+#    #ind = I[:,:] > 250
+#    #Ibin = np.zeros((I.shape[0],I.shape[1])).astype('uint8')
+#    #Ibin[ind] = 255
+#    #Ibin = remove_isolated_pixels(Ibin)
+
+#    ## 4 class binarise (tubules are classes 2 and 4 given 1,2,3,4 from black to white)
+#    Ibin = np.zeros((I.shape[0],I.shape[1])).astype('uint8')
+#    ind = I[:,:] > 250
+#    Ibin[ind] = 255
+#    ind = (I[:,:] > 80) & (I[:,:] < 90)
+#    Ibin[ind] = 255
+#    Ibin = remove_isolated_pixels(Ibin)
+
+#    return Ibin
+
 def binariseImage(I):
-    #ind = I[:,:,0] > 250 # old version of skimage
-
-    ## 3 class binarise
-    #ind = I[:,:] > 250
-    #Ibin = np.zeros((I.shape[0],I.shape[1])).astype('uint8')
-    #Ibin[ind] = 255
-    #Ibin = remove_isolated_pixels(Ibin)
-
-    ## 4 class binarise (tubules are classes 2 and 4 given 1,2,3,4 from black to white)
+    if len(I.shape) > 2:
+        ind = I[:,:,0] > 250
+    else:
+        ind = I > 250
     Ibin = np.zeros((I.shape[0],I.shape[1])).astype('uint8')
-    ind = I[:,:] > 250
-    Ibin[ind] = 255
-    ind = (I[:,:] > 80) & (I[:,:] < 90)
     Ibin[ind] = 255
     Ibin = remove_isolated_pixels(Ibin)
-    
     return Ibin
 
 
@@ -557,21 +654,29 @@ def getGraph(img,basename):
     # build graph from skeleton
     graph = sknw.build_sknw(ske)
 
+    # draw image
+    plt.figure(figsize=(15,15))
+    plt.imshow(img, cmap='gray')
+
     # draw edges by pts
     for (s,e) in graph.edges():
         ps = graph[s][e]['pts']
-        
+        plt.plot([ps[0,1],ps[-1,1]], [ps[0,0],ps[-1,0]], 'green')
+
     # draw node by o
     nodes = graph.nodes()
-    ps = np.array([nodes[i]['o'] for i in nodes])   
+    ps = np.array([nodes[i]['o'] for i in nodes])
+    plt.plot(ps[:,1], ps[:,0], 'r.')
 
     # print('EDGES',graph.edges())
     # print('NODES',graph.nodes())
     #graph_edges_list = [list(e) for e in graph.edges()]
     #graph_nodes_list = [list(e) for e in graph.nodes()]
-        
-    open('%s_edges.dat' % basename,'w').write(str(np.array(graph.edges()).tolist()))
-    open('%s_nodes.dat' % basename,'w').write(str(np.array(graph.nodes()).tolist()))
+
+    plt.savefig('%s_fig.jpg' % basename, bbox_inches = 'tight', pad_inches = 0, quality=80,dpi=300)
+    plt.close()
+    open('%s_edges.dat' % basename,'w').write(str(graph.edges()).replace('(','[').replace(')',']'))
+    open('%s_nodes.dat' % basename,'w').write(str(graph.nodes()).replace('(','[').replace(')',']'))
 
     edges = np.array(graph.edges())
 
@@ -585,7 +690,7 @@ import collections
 plt.switch_backend('agg')
 
 
-#build teh networkx graph from node and egdes lists 
+#build the networkx graph from node and egdes lists
 def build_graph(nodes,edges):
     G=nx.Graph()
     G.add_nodes_from(nodes)
@@ -593,7 +698,7 @@ def build_graph(nodes,edges):
         G.add_edge(edge[0],edge[1])
     return G
 
-# perform some analysis 
+# perform some analysis
 def simple_analysis(G):
     no_nodes=G.number_of_nodes()
     no_edges=G.number_of_edges()
@@ -622,12 +727,20 @@ def degree_histogram(savepath,G,colour='blue'):
     ax.set_xticks([d + 0.4 for d in deg])
     ax.set_xticklabels(deg)
     plt.savefig(savepath)
-
     plt.close()
-    return deg,cnt
+
+    print(deg,cnt)
+
+    degrees = [0]*6 # ordered from deg. 1 to 6
+    for _deg,_cnt in zip(deg,cnt):
+        if _deg - 1 < 6:
+            degrees[_deg - 1] = _cnt
+
+    return degrees
 
 
-# here we generate an image where nodes are coloured according to their degrees 
+
+# here we generate an image where nodes are coloured according to their degrees
 def graph_image(savepath,G):
     plt.figure()
     node_color = [float(G.degree(v)) for v in G]
@@ -638,70 +751,76 @@ def graph_image(savepath,G):
 
 
 
-def performGraphProcessing(imgfile,opt, conn, basename):
-    
+def performGraphProcessing(imgfile,opt, basename, imgid):
+
     savepath_hist = '%s_hist.png' % basename
     savepath_graph = '%s_graph.png' % basename
 
     img = io.imread(imgfile)
     edges, nodes = getGraph(img, basename)
     G=build_graph(nodes,edges)
-    no_nodes,no_edges,assortativity, clustering, compo, ratio_nodes, ratio_edges = simple_analysis(G)
-    deg,cnt = degree_histogram(savepath_hist,G,'goldenrod')
-
-    fid = open('%s_metrics.csv' % basename,'w')
-    fid.write('no_nodes,no_edges,assortativity, clustering, compo, ratio_nodes, ratio_edges\n')
-    print(no_nodes,no_edges,assortativity, clustering, compo, ratio_nodes, ratio_edges,file=fid,sep=',',end='')
-    
-    fid.close()
-    fid = open('%s_degrees.csv' % basename,'w')
-    fid.write('deg,count')
-    for i in range(len(deg)):
-        fid.write('\n%d,%d' % (deg[i],cnt[i]))
+    # metrics: no_nodes,no_edges,assortativity, clustering, compo, ratio_nodes, ratio_edges
+    metrics = simple_analysis(G)
+    degrees = degree_histogram(savepath_hist,G,'goldenrod')
     graph_image(savepath_graph,G)
+
+    opt.graphfid.write('%s,%d,%d,%0.5f,%0.5f,%0.5f,%0.5f,%0.5f,%d,%d,%d,%d,%d,%d\n' % (imgid,*metrics,*degrees))
 
     plt.close()
 
     return [savepath_graph,savepath_hist]
 
 
-
 def segment(exportdir,filepaths,conn,weka_colours,stats_tubule_sheet,graph_metrics,save_in_original_folders,save_input=True):
     import sys
+    import os
     opt = Namespace()
     opt.root = filepaths
     opt.ext = ['jpg','png','tif']
     opt.stats_tubule_sheet = stats_tubule_sheet
-    opt.weka_colours = weka_colours
+    opt.graph_metrics = graph_metrics
+    # opt.weka_colours = weka_colours
+    opt.weka_colours = False
     opt.save_input = save_input
-    
+
     opt.exportdir = exportdir
+    os.makedirs(exportdir,exist_ok=True)
     opt.jobname = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:-3]
 
     if stats_tubule_sheet:
         csvfid_path = '%s/%s_stats_tubule_sheet.csv' % (opt.exportdir, opt.jobname)
         opt.csvfid = open(csvfid_path,'w')
 
-    ## model specific 
-    opt.imageSize = 1000
-    opt.n_resblocks = 10
-    opt.n_resgroups = 2
-    opt.n_feats = 64
-    opt.reduction = 16
-    opt.narch = 0
-    opt.norm = None
+    if opt.graph_metrics:
+       graphfid_path = '%s/%s_graph_metrics.csv' % (opt.exportdir, opt.jobname)
+       opt.graphfid = open(graphfid_path,'w')
+
+    # options
     opt.nch_in = 1
     opt.nch_out = 4
-    opt.cpu = False
-    opt.weights = '../models/20210710_4class.pth'
     opt.scale = 1
-    
-    
+    opt.norm = None
+    opt.cpu = False
+
+    ## model specific
+    opt.useTransformer = True
+    if opt.useTransformer:
+        opt.imageSize = 600
+        opt.weights = '../models/20220306_ER_4class_swinir_nch1.pth'
+    else:
+        opt.weights = '../models/20210710_4class.pth'
+        opt.imageSize = 1000
+        opt.n_resblocks = 10
+        opt.n_resgroups = 2
+        opt.n_feats = 64
+        opt.reduction = 16
+        opt.narch = 0
+
     if save_in_original_folders:
         opt.out = "root"
 
     print(opt)
-    
+
     if graph_metrics:
         return EvaluateModel(opt,conn,graph_metrics)
     else:

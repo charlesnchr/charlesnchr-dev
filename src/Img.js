@@ -14,11 +14,11 @@ class Img extends Component {
     constructor(props) {
       log.info("CREATING new IMG component", props.filepath);
       super(props);
-  
+
       let filepath = props.filepath;
       let dim = "N/A",
         imgsrc = null;
-  
+
       this.state = {
         dim: dim,
         imgsrc: imgsrc,
@@ -27,16 +27,18 @@ class Img extends Component {
         hoverBool: false,
       };
     }
-  
+
     selectImage(filepath, e) {
       if (e.buttons == 1) {
-        ipcRenderer.send('showImage',this.state.imgsrc)
+        // ipcRenderer.send('showImage',this.state.imgsrc)
+        this.setState({ selectedBool: !this.state.selectedBool });
+        sess.toggleSelectedFilepath(filepath);
       } else if (e.buttons == 2) {
         this.setState({ selectedBool: !this.state.selectedBool });
         sess.toggleSelectedFilepath(filepath);
       }
     }
-  
+
     imageHoverOver(filepath, e) {
       if (e.buttons == 2) {
         this.setState({
@@ -48,11 +50,11 @@ class Img extends Component {
         this.setState({ hoverBool: true });
       }
     }
-  
+
     imageHoverOut(filepath, e) {
       this.setState({ hoverBool: false });
     }
-  
+
     getThumb(filepath) {
       // if (
       //   !sess.thumbJobs.includes(filepath) &&
@@ -77,16 +79,16 @@ class Img extends Component {
       }
       // }
     }
-  
+
     componentDidMount() {
       if (path.extname(this.state.filepath) == ".png") {
         // showing results
         let dim = "2D image";
         let imgsrc = this.state.filepath;
         this.setState({ dim: dim, imgsrc: 'file://' + imgsrc });
-      } else {  
+      } else {
         let thumb = sess.thumbdict[this.state.filepath];
-  
+
         if (!thumb) {
           log.info("Thumb does not exist", this.state.filepath);
           this.getThumb(this.state.filepath);
@@ -94,12 +96,12 @@ class Img extends Component {
           this.setState({ dim: thumb.dim, imgsrc: thumb.src });
         }
       }
-  
+
       ipcRenderer.on("thumb_" + this.state.filepath, (event, thumbpath, dim) => {
         // remove completed job
         let idx = sess.thumbJobs.indexOf(this.state.filepath);
         if (idx > -1) sess.thumbJobs.splice(idx, 1);
-        
+
         // render if job was a success
         if (thumbpath !== "0") {
           thumbpath = 'file://' + thumbpath;
@@ -118,7 +120,7 @@ class Img extends Component {
         transition: "border-width 0.3s linear, border-color 1s linear",
       };
       let  check = [], divHover = [];
-  
+
       if (this.state.selectedBool) {
         style = {
           border: "12px solid #e8f0fe",
@@ -170,8 +172,8 @@ class Img extends Component {
           pointerEvents:'none',
         };
         divHover = <div style={styleHover}></div>;
-      } 
-  
+      }
+
       const caption = (
         <span
           onClick={this.selectImage.bind(this, fp)}
@@ -198,9 +200,9 @@ class Img extends Component {
           Stack info: <span style={{ fontWeight: "bold" }}>{this.state.dim}</span>
         </span>
       );
-  
+
       let img;
-  
+
       if (this.state.imgsrc) {
         img = (
           <img
@@ -233,7 +235,7 @@ class Img extends Component {
           </div>
         );
       }
-  
+
       return (
         <div
           key={fp + "-div"}

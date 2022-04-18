@@ -38,36 +38,36 @@ class ImageView extends Component {
       <div
         className="App-header draggable"
         style={{
-          position: "fixed",
           width: this.state.appWidth,
-          zIndex: 100,
           height: sess.headerHeight
         }}
       >
-        <Grid container alignItems="center" justify="space-between" spacing={2} style={{paddingTop:30}}>
-        {this.state.filepath}  
+        <Grid container alignItems="center" justify="space-between" spacing={2} style={{paddingTop:0}}>
+        {this.state.filepath}
         </Grid>
       </div>
     );
     let imgdiv = (
-      <div
-        style={{
-          display: "table",
-          marginLeft: "auto",
-          width: 800,
-          height: 600,
-          marginRight: "auto",
-          paddingTop: sess.headerHeight,
-          backgroundImage: `url("${this.state.filepath}")`,
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "center",
-          backgroundSize: "cover",
-        }}
-      >
-        
+        <div>
+        <img src={this.state.filepath} />
       </div>
     );
     return <>{header}{imgdiv}</>;
   }
 }
+
+        // style={{
+        //     display: "table",
+        //         marginLeft: "auto",
+        //         width: 800,
+        //         height: 800,
+        //         marginRight: "auto",
+        //         marginTop: sess.headerHeight,
+        //         backgroundImage: `url("${this.state.filepath}")`,
+        //         backgroundRepeat: "no-repeat",
+        //         backgroundPosition: "center",
+        //         backgroundSize: "cover",
+        // }}
+        // >
+
 export default ImageView;
